@@ -6,25 +6,21 @@ import (
 	"encoding/json"
 	"github.com/munoudesu/clipper/configurator"
 	"github.com/munoudesu/clipper/youtubedataapi"
+	"github.com/munoudesu/clipper/database"
 )
 
 type clipperYoutubeConfig struct {
 	ApiKeyFile string `toml:"apiKeyFile"`
+	Channels []*youtubedataapi.Channel`toml:"channels"`
 }
 
 type clipperDatabaseConfig struct {
 	DatabasePath string `toml:"databasePath"`
 }
 
-type clipperChannelConfig struct {
-	Name      string `toml:"name"`
-	ChannelId string `toml:"channelId"`
-}
-
 type clipperConfig struct {
-	Youtube  *clipperYoutubeConfig   `toml:"youtube"`
-	Database *clipperDatabaseConfig  `toml:"database"`
-	Channels []*clipperChannelConfig `toml:"channels"`
+	Youtube  *clipperYoutubeConfig    `toml:"youtube"`
+	Database *clipperDatabaseConfig   `toml:"database"`
 }
 
 func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
@@ -33,7 +29,8 @@ func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
 	}
 	j, err := json.Marshal(loadedConfig)
 	if err != nil {
-		log.Fatalf("can not dump config (%v)", err)
+		log.Printf("can not dump config (%v)", err)
+		return
 	}
 	log.Printf("loaded config: %v", string(j))
 }
@@ -41,19 +38,43 @@ func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
 func main() {
 	var configFile string
 	var verbose bool
+	var checkModified bool
 	flag.StringVar(&configFile, "config", "clipper.conf", "config file")
 	flag.BoolVar(&verbose, "verbose", false, "verbose")
+	flag.BoolVar(&checkModified, "checkModified", false, "check modified")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(configFile)
 	conf := new(clipperConfig)
 	err = cf.Load(conf)
 	if err != nil {
-		log.Fatalf("can not load config: %v", err)
+		log.Printf("can not load config: %v", err)
+		return
 	}
 	verboseLoadedConfig(verbose, conf)
 	youtubeApiKey, err := youtubedataapi.LoadApiKey(conf.Youtube.ApiKeyFile)
 	if err != nil {
-		log.Fatalf("can not load api key of youtube: %v", err)
+		log.Printf("can not load api key of youtube: %v", err)
+		return
 	}
-	log.Printf("%v", youtubeApiKey)
+	databaseOperator, err := database.NewDatabaseOperator(conf.Database.DatabasePath)
+	if err != nil {
+		 log.Printf("can not create database operator: %v", err)
+		 return
+	}
+	err = databaseOperator.Open()
+	if err != nil {
+		log.Printf("can not open database: %v", err)
+		return
+	}
+	defer databaseOperator.Close()
+	youtubeVideoSearcher, err := youtubedataapi.NewVideoSearcher(youtubeApiKey, conf.Youtube.Channels, databaseOperator)
+	if err != nil {
+		log.Printf("can not create video searcher of youtube: %v", err)
+		return
+	}
+	err = youtubeVideoSearcher.Search(checkModified)
+	if err != nil {
+		log.Printf("can not search youtube video: %v", err)
+		return
+	}
 }

@@ -19,4 +19,5 @@ func LoadApiKey(apiKeyFile string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "can not read youtube data api key file (%v)", apiKeyFile)
 	}
+	return strings.TrimSpace(string(apiKey)), nil
 }
