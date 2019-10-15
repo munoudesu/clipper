@@ -194,7 +194,7 @@ func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string) (*dat
 	return video, nil
 }
 
-func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified bool) (error) {
+func (v *VideoSearcher)searchVideosByChannel(channel *Channel, allSearch bool, checkModified bool) (error) {
 	log.Printf("search video of channel %v", channel.ChannelId)
         searchService := youtube.NewSearchService(v.youtubeService)
         pageToken := ""
@@ -254,7 +254,7 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified boo
 				}
 			}
                 }
-                if searchListResponse.NextPageToken != "" {
+                if allSearch && searchListResponse.NextPageToken != "" {
                         pageToken = searchListResponse.NextPageToken
 			continue
                 }
@@ -263,9 +263,9 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified boo
 	return nil
 }
 
-func (v *VideoSearcher)Search(checkVideoModified bool, checkCommentModified bool) (error) {
+func (v *VideoSearcher)Search(allSearch bool, checkVideoModified bool, checkCommentModified bool) (error) {
 	for _, channel := range v.channels {
-		err := v.searchVideosByChannel(channel, checkVideoModified)
+		err := v.searchVideosByChannel(channel, allSearch, checkVideoModified)
 		if err != nil {
 			return errors.Wrapf(err, "can not search videos by channel (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
 		}
