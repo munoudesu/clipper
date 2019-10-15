@@ -419,7 +419,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of tradeContext")
         }
-	log.Printf("update videp (videoId = %v, insert id = %v)", video.VideoId, id)
+	log.Printf("update video (videoId = %v, insert id = %v)", video.VideoId, id)
 
         return nil
 }
