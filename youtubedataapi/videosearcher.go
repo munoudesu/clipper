@@ -263,24 +263,25 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified boo
 	return nil
 }
 
-func (v *VideoSearcher)Search(videoOnly bool, checkVideoModified bool, checkCommentModified bool) (error) {
-	for _, channel := range v.channels {
-		err := v.searchVideosByChannel(channel, checkVideoModified)
-		if err != nil {
-			return errors.Wrapf(err, "can not search videos by channel (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
+func (v *VideoSearcher)Search(searchVideo bool, searchComment bool, checkVideoModified bool, checkCommentModified bool) (error) {
+	if searchVideo {
+		for _, channel := range v.channels {
+			err := v.searchVideosByChannel(channel, checkVideoModified)
+			if err != nil {
+				return errors.Wrapf(err, "can not search videos by channel (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
+			}
 		}
 	}
-	if videoOnly {
-		return nil
-	}
-	videos, err := v.databaseOperator.GetVideos()
-	if err != nil {
-		return errors.Wrapf(err, "can not get videos from database")
-	}
-	for _, video := range videos {
-		err := v.searchCommentThreadsByVideo(video, checkCommentModified)
+	if searchComment {
+		videos, err := v.databaseOperator.GetVideos()
 		if err != nil {
-			return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
+			return errors.Wrapf(err, "can not get videos from database")
+		}
+		for _, video := range videos {
+			err := v.searchCommentThreadsByVideo(video, checkCommentModified)
+			if err != nil {
+				return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
+			}
 		}
 	}
 	return nil
