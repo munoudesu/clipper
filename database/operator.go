@@ -126,7 +126,7 @@ func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (e
 		if err != nil {
 			return errors.Wrap(err, "can not get insert id of replyComment")
 		}
-		log.Printf("insert id = %v", id)
+		log.Printf("update reply comment (commentId = %v, insert id = %v)", replyComment.CommentId, id)
 	}
 
 	return nil
@@ -175,7 +175,7 @@ func (d *DatabaseOperator) updateTopLevelComment(topLevelComment *TopLevelCommen
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of topLevelComment")
         }
-        log.Printf("insert id = %v", id)
+	log.Printf("update top level comment (commentId = %v, insert id = %v)", topLevelComment.CommentId, id)
 
         return nil
 }
@@ -205,7 +205,7 @@ func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (er
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of commentThread")
         }
-        log.Printf("insert id = %v", id)
+	log.Printf("update comment thread (commentThreadId = %v, insert id = %v)", commentThread.CommentThreadId, id)
 	err = d.updateTopLevelComment(commentThread.TopLevelComment)
 	if err != nil {
                 return errors.Wrap(err, "can not update topLevelComment")
@@ -419,7 +419,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of tradeContext")
         }
-        log.Printf("insert id = %v", id)
+	log.Printf("update videp (videoId = %v, insert id = %v)", video.VideoId, id)
 
         return nil
 }
