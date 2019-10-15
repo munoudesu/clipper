@@ -24,7 +24,7 @@ type VideoSearcher struct {
 	databaseOperator *database.DatabaseOperator
 }
 
-func (v *VideoSearcher)getCommentThreadByCommentThreadId(video *database.Video, commentThreadId string, etag string) (*database.CommentThread, bool, error) {
+func (v *VideoSearcher)getCommentThreadByCommentThreadId(video *database.Video, commentThreadId string, etag string) (*database.CommentThread, bool, bool, error) {
         commentThreadsService := youtube.NewCommentThreadsService(v.youtubeService)
 	commentThreadsListCall := commentThreadsService.List("id,replies,snippet")
 	commentThreadsListCall.MaxResults(100)
@@ -36,14 +36,14 @@ func (v *VideoSearcher)getCommentThreadByCommentThreadId(video *database.Video, 
 	commentThreadListResponse, err := commentThreadsListCall.Do()
 	if err != nil {
 		if googleapi.IsNotModified(err) {
-			return nil, true, nil
+			return nil, true, false, nil
 		} else {
-			return nil, false, errors.Wrapf(err, "can not do comment thread list call")
+			return nil, false, false, errors.Wrapf(err, "can not do comment thread list call")
 		}
 	}
 	if len(commentThreadListResponse.Items) != 1 {
-		// removed ?
-		return nil, false, errors.Wrapf(err, "not found commentThread or found many commentThread (commentThreadId = %v)", commentThreadId)
+		log.Printf("not found commentThread or found many commentThread (commentThreadId = %v): %v", commentThreadId, err)
+		return nil, false, true, nil
 	}
 	item := commentThreadListResponse.Items[0]
 	commentThread := &database.CommentThread {
@@ -91,7 +91,7 @@ func (v *VideoSearcher)getCommentThreadByCommentThreadId(video *database.Video, 
 		}
 	}
 	commentThread.ReplyComments = replyComments
-	return commentThread, false, nil
+	return commentThread, false, false, nil
 }
 
 
@@ -116,16 +116,20 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 			}
 			if ok {
 				if !checkModified {
-					log.Printf("skipped because video is already exists in database. (commentThreadId = %v, etag = %v)", commentThread.CommentThreadId, commentThread.Etag)
+					log.Printf("skipped because video is already exists in database (commentThreadId = %v, etag = %v)", commentThread.CommentThreadId, commentThread.Etag)
 					continue
 				}
 				// 更新チェックもする場合
-				newCommentThread, notModified, err := v.getCommentThreadByCommentThreadId(video, commentThread.CommentThreadId, commentThread.Etag)
+				newCommentThread, notModified, notFound, err := v.getCommentThreadByCommentThreadId(video, commentThread.CommentThreadId, commentThread.Etag)
 				if err != nil {
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", commentThread.CommentThreadId)
 				}
+				if notFound {
+					log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", commentThread.CommentThreadId)
+					continue
+				}
 				if notModified || commentThread.Etag == newCommentThread.Etag {
-					log.Printf("skipped because commentThread resource is not modified. (commentThreadIdId = %v, etag = %v)", newCommentThread.CommentThreadId, newCommentThread.Etag)
+					log.Printf("skipped because commentThread resource is not modified (commentThreadIdId = %v, etag = %v)", newCommentThread.CommentThreadId, newCommentThread.Etag)
 					continue
 				}
 				err = v.databaseOperator.UpdateCommentThread(newCommentThread)
@@ -134,9 +138,13 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 				}
 			} else {
 				// DB上にレコードがまだないので新規に情報を取得して追加
-				newCommentThread, _, err := v.getCommentThreadByCommentThreadId(video, item.Id, "")
+				newCommentThread, _, notFound,  err := v.getCommentThreadByCommentThreadId(video, item.Id, "")
 				if err != nil {
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", item.Id)
+				}
+				if notFound {
+					log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", item.Id)
+					continue
 				}
 				err = v.databaseOperator.UpdateCommentThread(newCommentThread)
 				if err != nil {
@@ -155,7 +163,7 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 	return nil
 }
 
-func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, error) {
+func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, bool, error) {
 	videoService :=	youtube.NewVideosService(v.youtubeService)
 	videosListCall := videoService.List("id,snippet,player")
 	videosListCall.Id(videoId)
@@ -165,14 +173,14 @@ func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag 
 	if err != nil {
 
 		if googleapi.IsNotModified(err) {
-			return nil, true, nil
+			return nil, true, false, nil
 		} else {
-			return nil, false, errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", videoId)
+			return nil, false, false, errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", videoId)
 		}
 	}
 	if len(videoListResponse.Items) != 1 {
-		// removed ?
-		return nil, false, errors.Wrapf(err, "not found video or found many video (videoId = %v)", videoId)
+		log.Printf("not found video or found many video (videoId = %v): %v", err)
+		return nil, false, true, nil
 	}
 	item := videoListResponse.Items[0]
 	video := &database.Video{
@@ -196,7 +204,7 @@ func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag 
 		EmbedHeight: item.Player.EmbedHeight,
 		EmbedHtml: item.Player.EmbedHtml,
 	}
-	return video, false, nil
+	return video, false, false, nil
 }
 
 func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified bool) (error) {
@@ -231,16 +239,20 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified boo
 			}
 			if ok {
 				if !checkModified {
-					log.Printf("skipped because video is already exists in database. (videoId = %v, etag = %v)", video.VideoId, video.Etag)
+					log.Printf("skipped because video is already exists in database (videoId = %v, etag = %v)", video.VideoId, video.Etag)
 					continue
 				}
 				// 更新チェックもする場合
-				newVideo, notModified, err := v.getVideoByVideoId(channel, video.VideoId, video.Etag)
+				newVideo, notModified, notFound, err := v.getVideoByVideoId(channel, video.VideoId, video.Etag)
 				if err != nil {
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", video.VideoId)
 				}
+				if notFound {
+					log.Printf("skipped because not found video resource (videoId = %v)", video.VideoId)
+					continue
+				}
 				if notModified || video.Etag == newVideo.Etag {
-					log.Printf("skipped because video resource is not modified. (videoId = %v, etag = %v)", newVideo.VideoId, newVideo.Etag)
+					log.Printf("skipped because video resource is not modified (videoId = %v, etag = %v)", newVideo.VideoId, newVideo.Etag)
 					continue
 				}
 				err = v.databaseOperator.UpdateVideo(newVideo)
@@ -249,9 +261,13 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, checkModified boo
 				}
 			} else {
 				// DB上にレコードがまだないので新規に情報を取得して追加
-				newVideo, _, err := v.getVideoByVideoId(channel, item.Id.VideoId, "")
+				newVideo, _, notFound, err := v.getVideoByVideoId(channel, item.Id.VideoId, "")
 				if err != nil {
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", item.Id.VideoId)
+				}
+				if notFound {
+					log.Printf("skipped because not found video resource (videoId = %v)", item.Id.VideoId)
+					continue
 				}
 				err = v.databaseOperator.UpdateVideo(newVideo)
 				if err != nil {
