@@ -41,11 +41,13 @@ func main() {
 	var checkVideoModified bool
 	var checkCommentModified bool
 	var allSearch bool
+	var videoOnly bool
 	flag.StringVar(&configFile, "config", "clipper.conf", "config file")
 	flag.BoolVar(&verbose, "verbose", false, "verbose")
 	flag.BoolVar(&checkVideoModified, "checkVideoModified", false, "check video modified")
 	flag.BoolVar(&checkCommentModified, "checkCommentModified", false, "check comment modified")
 	flag.BoolVar(&allSearch, "allSearch", false, "all search")
+	flag.BoolVar(&videoOnly, "videOnly", false, "video only")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(configFile)
 	conf := new(clipperConfig)
@@ -76,7 +78,7 @@ func main() {
 		log.Printf("can not create video searcher of youtube: %v", err)
 		return
 	}
-	err = youtubeVideoSearcher.Search(allSearch, checkVideoModified, checkCommentModified)
+	err = youtubeVideoSearcher.Search(allSearch, videoOnly, checkVideoModified, checkCommentModified)
 	if err != nil {
 		log.Printf("can not search youtube video: %v", err)
 		return

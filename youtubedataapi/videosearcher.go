@@ -263,12 +263,15 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, allSearch bool, c
 	return nil
 }
 
-func (v *VideoSearcher)Search(allSearch bool, checkVideoModified bool, checkCommentModified bool) (error) {
+func (v *VideoSearcher)Search(allSearch bool, videoOnly bool, checkVideoModified bool, checkCommentModified bool) (error) {
 	for _, channel := range v.channels {
 		err := v.searchVideosByChannel(channel, allSearch, checkVideoModified)
 		if err != nil {
 			return errors.Wrapf(err, "can not search videos by channel (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
 		}
+	}
+	if videoOnly {
+		return nil
 	}
 	videos, err := v.databaseOperator.GetVideos()
 	if err != nil {
