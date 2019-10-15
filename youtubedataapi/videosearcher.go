@@ -169,6 +169,7 @@ func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag 
 	videosListCall.Id(videoId)
 	videosListCall.MaxResults(50)
 	videosListCall.PageToken("")
+	videosListCall.IfNoneMatch(etag)
 	videoListResponse, err := videosListCall.Do()
 	if err != nil {
 
