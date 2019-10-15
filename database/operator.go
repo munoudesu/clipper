@@ -15,31 +15,321 @@ type DatabaseOperator struct {
 }
 
 type Video struct {
-	VideoId               string
-	Etag                  string
-	Name                  string
-	ChannelId             string
-	ChannelTitle          string
-	Title                 string
-	Description           string
-	PublishdAt            string
-	ThumbnailHighUrl      string
-	ThumbnailHighWidth    int64
-	ThumbnailHighHeight   int64
-	ThumbnailMediumUrl    string
-	ThumbnailMediumWidth  int64
-	ThumbnailMediumHeight int64
-	EmbedHeight           int64
-	EmbedWidth            int64
-	EmbedHtml             string
+	VideoId                string
+	Etag                   string
+	Name                   string
+	ChannelId              string
+	ChannelTitle           string
+	Title                  string
+	Description            string
+	PublishdAt             string
+	ThumbnailDefaultUrl    string
+	ThumbnailDefaultWidth  int64
+	ThumbnailDefaultHeight int64
+	ThumbnailHighUrl       string
+	ThumbnailHighWidth     int64
+	ThumbnailHighHeight    int64
+	ThumbnailMediumUrl     string
+	ThumbnailMediumWidth   int64
+	ThumbnailMediumHeight  int64
+	EmbedHeight            int64
+	EmbedWidth             int64
+	EmbedHtml              string
 }
 
-func (d *DatabaseOperator) GetVideo(videoId string) (*Video, bool, error) {
-        rows, err := d.db.Query(`SELECT * FROM video WHERE videoId = ?`, videoId)
+type CommentThread struct {
+	CommentThreadId string
+	Etag            string
+	Name            string
+	ChannelId       string
+	VideoId         string
+	TopLevelComment *TopLevelComment
+	ReplyComments   []*ReplyComment
+}
+
+type TopLevelComment struct {
+	CommentId             string
+	Etag                  string
+	ChannelId             string
+	VideoId               string
+	CommentThreadId       string
+	AuthorChannelUrl      string
+	AuthorDisplayName     string
+	AuthorProfileImageUrl string
+	ModerationStatus      string
+	TextDisplay           string
+	TextOriginal          string
+	PublishAt             string
+	UpdateAt              string
+}
+
+type ReplyComment struct {
+	CommentId             string
+	Etag                  string
+	ChannelId             string
+	VideoId               string
+	CommentThreadId       string
+	ParentId              string
+	AuthorChannelUrl      string
+	AuthorDisplayName     string
+	AuthorProfileImageUrl string
+	ModerationStatus      string
+	TextDisplay           string
+	TextOriginal          string
+	PublishAt             string
+	UpdateAt              string
+}
+
+func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (error) {
+	for _, replyComment := range replyComments {
+		res, err := d.db.Exec(
+		    `INSERT OR REPLACE INTO replyComment (
+			commentId,
+			etag,
+			channelId,
+			videoId,
+			commentThreadId,
+			parentId,
+			authorChannelUrl,
+			authorDisplayName,
+			authorProfileImageUrl,
+			moderationStatus,
+			textDisplay,
+			textOriginal,
+			publishAt,
+			updateAt
+		    ) VALUES (
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?
+		    )`,
+		    replyComment.CommentId,
+		    replyComment.Etag,
+		    replyComment.ChannelId,
+		    replyComment.VideoId,
+		    replyComment.CommentThreadId,
+		    replyComment.ParentId,
+		    replyComment.AuthorChannelUrl,
+		    replyComment.AuthorDisplayName,
+		    replyComment.AuthorProfileImageUrl,
+		    replyComment.ModerationStatus,
+		    replyComment.TextDisplay,
+		    replyComment.TextOriginal,
+		    replyComment.PublishAt,
+		    replyComment.UpdateAt,
+		)
+		if err != nil {
+			return errors.Wrap(err, "can not insert replyComment")
+		}
+		// 挿入処理の結果からIDを取得
+		id, err := res.LastInsertId()
+		if err != nil {
+			return errors.Wrap(err, "can not get insert id of replyComment")
+		}
+		log.Printf("insert id = %v", id)
+	}
+
+	return nil
+}
+
+func (d *DatabaseOperator) updateTopLevelComment(topLevelComment *TopLevelComment) (error) {
+	res, err := d.db.Exec(
+            `INSERT OR REPLACE INTO topLevelComment (
+                commentId,
+                etag,
+                channelId,
+                videoId,
+                commentThreadId,
+                authorChannelUrl,
+                authorDisplayName,
+                authorProfileImageUrl,
+                moderationStatus,
+                textDisplay,
+                textOriginal,
+                publishAt,
+                updateAt
+            ) VALUES (
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?
+            )`,
+	    topLevelComment.CommentId,
+	    topLevelComment.Etag,
+	    topLevelComment.ChannelId,
+	    topLevelComment.VideoId,
+	    topLevelComment.CommentThreadId,
+	    topLevelComment.AuthorChannelUrl,
+	    topLevelComment.AuthorDisplayName,
+	    topLevelComment.AuthorProfileImageUrl,
+	    topLevelComment.ModerationStatus,
+	    topLevelComment.TextDisplay,
+	    topLevelComment.TextOriginal,
+	    topLevelComment.PublishAt,
+	    topLevelComment.UpdateAt,
+        )
         if err != nil {
-                return nil, false, errors.Wrap(err, "can not get video by videoId from database")
+                return errors.Wrap(err, "can not insert topLevelComment")
+        }
+        // 挿入処理の結果からIDを取得
+        id, err := res.LastInsertId()
+        if err != nil {
+                return errors.Wrap(err, "can not get insert id of topLevelComment")
+        }
+        log.Printf("insert id = %v", id)
+
+        return nil
+}
+
+func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (error) {
+	res, err := d.db.Exec(
+            `INSERT OR REPLACE INTO commentThread (
+                commentThreadId,
+                etag,
+                name,
+                channelId,
+                videoId
+            ) VALUES (
+                ?, ?, ?, ?, ?
+            )`,
+	    commentThread.CommentThreadId,
+	    commentThread.Etag,
+	    commentThread.Name,
+	    commentThread.ChannelId,
+	    commentThread.VideoId,
+        )
+        if err != nil {
+                return errors.Wrap(err, "can not insert commentThread")
+        }
+        // 挿入処理の結果からIDを取得
+        id, err := res.LastInsertId()
+        if err != nil {
+                return errors.Wrap(err, "can not get insert id of commentThread")
+        }
+        log.Printf("insert id = %v", id)
+	err = d.updateTopLevelComment(commentThread.TopLevelComment)
+	if err != nil {
+                return errors.Wrap(err, "can not update topLevelComment")
+	}
+	err = d.updateReplyComments(commentThread.ReplyComments)
+	if err != nil {
+                return errors.Wrap(err, "can not update replayComments")
+	}
+
+        return nil
+}
+
+func (d *DatabaseOperator) getReplyComments(commentThreadId string) ([]*ReplyComment, error) {
+        rows, err := d.db.Query(`SELECT * FROM replyComment WHERE commentThreadId = ?`, commentThreadId)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get replyComment by commentThreadId from database")
         }
         defer rows.Close()
+	replyComments := make([]*ReplyComment, 0)
+        for rows.Next() {
+                replyComment := &ReplyComment{}
+                // カーソルから値を取得
+                err := rows.Scan(
+                    &replyComment.CommentId,
+                    &replyComment.Etag,
+                    &replyComment.ChannelId,
+                    &replyComment.VideoId,
+                    &replyComment.CommentThreadId,
+                    &replyComment.ParentId,
+                    &replyComment.AuthorChannelUrl,
+                    &replyComment.AuthorDisplayName,
+                    &replyComment.AuthorProfileImageUrl,
+                    &replyComment.ModerationStatus,
+                    &replyComment.TextDisplay,
+                    &replyComment.TextOriginal,
+                    &replyComment.PublishAt,
+                    &replyComment.UpdateAt,
+                )
+                if err != nil {
+                        return nil, errors.Wrap(err, "can not scan replyComment by commentThreadId from database")
+                }
+		replyComments = append(replyComments, replyComment)
+        }
+        return replyComments, nil
+}
+
+func (d *DatabaseOperator) getTopLevelComment(commentThreadId string) (*TopLevelComment, bool, error) {
+        rows, err := d.db.Query(`SELECT * FROM topLevelComment WHERE commentThreadId = ?`, commentThreadId)
+        if err != nil {
+                return nil, false, errors.Wrap(err, "can not get topLevelComment by commentThreadId from database")
+        }
+        defer rows.Close()
+        for rows.Next() {
+                topLevelComment := &TopLevelComment{}
+                // カーソルから値を取得
+                err := rows.Scan(
+                    &topLevelComment.CommentId,
+                    &topLevelComment.Etag,
+                    &topLevelComment.ChannelId,
+                    &topLevelComment.VideoId,
+                    &topLevelComment.CommentThreadId,
+                    &topLevelComment.AuthorChannelUrl,
+                    &topLevelComment.AuthorDisplayName,
+                    &topLevelComment.AuthorProfileImageUrl,
+                    &topLevelComment.ModerationStatus,
+                    &topLevelComment.TextDisplay,
+                    &topLevelComment.TextOriginal,
+                    &topLevelComment.PublishAt,
+                    &topLevelComment.UpdateAt,
+                )
+                if err != nil {
+                        return nil, false, errors.Wrap(err, "can not scan topLevelComment by commentThreadId from database")
+                }
+		return topLevelComment, true, nil
+        }
+        return nil, false, nil
+
+
+}
+
+func (d *DatabaseOperator) GetCommentThreadByCommentThreadId(commentThreadId string) (*CommentThread, bool, error) {
+        rows, err := d.db.Query(`SELECT * FROM commentThread WHERE commentThreadId = ?`, commentThreadId)
+        if err != nil {
+                return nil, false, errors.Wrap(err, "can not get commentThread by commentThreadId from database")
+        }
+        defer rows.Close()
+        for rows.Next() {
+                commentThread := &CommentThread{}
+                // カーソルから値を取得
+                err := rows.Scan(
+                    &commentThread.CommentThreadId,
+                    &commentThread.Etag,
+                    &commentThread.Name,
+                    &commentThread.ChannelId,
+                    &commentThread.VideoId,
+                )
+                if err != nil {
+                        return nil, false, errors.Wrap(err, "can not scan commentThread by commentThreadId from database")
+                }
+		topLevelComment, ok, err := d.getTopLevelComment(commentThread.CommentThreadId)
+		if err != nil {
+                        return nil, false, errors.Wrap(err, "can not get top level comment by commentThreadId from database")
+		}
+		if !ok {
+                        return nil, false, errors.Wrap(err, "not found top level comment by commentThreadId from database")
+		}
+		replyComments, err := d.getReplyComments(commentThread.CommentThreadId)
+		if err != nil {
+                        return nil, false, errors.Wrap(err, "can not get reply comments by commentThreadId from database")
+		}
+		commentThread.TopLevelComment = topLevelComment
+		commentThread.ReplyComments = replyComments
+		return commentThread, true, nil
+        }
+        return nil, false, nil
+}
+
+func (d *DatabaseOperator) GetVideos() ([]*Video, error) {
+        rows, err := d.db.Query(`SELECT * FROM video`)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get videos from database")
+        }
+        defer rows.Close()
+	videos := make([]*Video, 0)
         for rows.Next() {
                 video := &Video{}
                 // カーソルから値を取得
@@ -52,6 +342,9 @@ func (d *DatabaseOperator) GetVideo(videoId string) (*Video, bool, error) {
                     &video.Title,
                     &video.Description,
                     &video.PublishdAt,
+                    &video.ThumbnailDefaultUrl,
+                    &video.ThumbnailDefaultWidth,
+                    &video.ThumbnailDefaultHeight,
                     &video.ThumbnailHighUrl,
                     &video.ThumbnailHighWidth,
                     &video.ThumbnailHighHeight,
@@ -63,11 +356,11 @@ func (d *DatabaseOperator) GetVideo(videoId string) (*Video, bool, error) {
 		    &video.EmbedHtml,
                 )
                 if err != nil {
-                        return nil, false, errors.Wrap(err, "can not scan video by videoId from database")
+                        return nil, errors.Wrap(err, "can not scan videos from database")
                 }
-		return video, true, nil
+		videos = append(videos, video)
         }
-        return nil, false, nil
+        return videos, nil
 }
 
 func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
@@ -81,6 +374,9 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
                 title,
                 description,
                 publishdAt,
+                thumbnailDefaultUrl,
+                thumbnailDefaultWidth,
+                thumbnailDefaultHeight,
                 thumbnailHighUrl,
                 thumbnailHighWidth,
                 thumbnailHighHeight,
@@ -92,7 +388,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
                 embedHtml
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )`,
 	    video.VideoId,
 	    video.Etag,
@@ -102,6 +398,9 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
 	    video.Title,
 	    video.Description,
 	    video.PublishdAt,
+	    video.ThumbnailDefaultUrl,
+	    video.ThumbnailDefaultWidth,
+	    video.ThumbnailDefaultHeight,
 	    video.ThumbnailHighUrl,
 	    video.ThumbnailHighWidth,
 	    video.ThumbnailHighHeight,
@@ -125,64 +424,129 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
         return nil
 }
 
+func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*Video, bool, error) {
+        rows, err := d.db.Query(`SELECT * FROM video WHERE videoId = ?`, videoId)
+        if err != nil {
+                return nil, false, errors.Wrap(err, "can not get video by videoId from database")
+        }
+        defer rows.Close()
+        for rows.Next() {
+                video := &Video{}
+                // カーソルから値を取得
+                err := rows.Scan(
+                    &video.VideoId,
+                    &video.Etag,
+                    &video.Name,
+                    &video.ChannelId,
+                    &video.ChannelTitle,
+                    &video.Title,
+                    &video.Description,
+                    &video.PublishdAt,
+                    &video.ThumbnailDefaultUrl,
+                    &video.ThumbnailDefaultWidth,
+                    &video.ThumbnailDefaultHeight,
+                    &video.ThumbnailHighUrl,
+                    &video.ThumbnailHighWidth,
+                    &video.ThumbnailHighHeight,
+                    &video.ThumbnailMediumUrl,
+                    &video.ThumbnailMediumWidth,
+                    &video.ThumbnailMediumHeight,
+		    &video.EmbedHeight,
+		    &video.EmbedWidth,
+		    &video.EmbedHtml,
+                )
+                if err != nil {
+                        return nil, false, errors.Wrap(err, "can not scan video by videoId from database")
+                }
+		return video, true, nil
+        }
+        return nil, false, nil
+}
+
 func (d *DatabaseOperator) createTables() (error) {
         videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS Video (
-                videoId               TEXT PRIMARY KEY,
-                etag                  TEXT NOT NULL,
-                name                  TEXT NOT NULL,
-                channelId             TEXT NOT NULL,
-                channelTitle          TEXT,
-                title                 TEXT,
-                description           TEXT,
-		publishdAt            TEXT,
-		thumbnailHighUrl      TEXT,
-		thumbnailHighWidth    INTEGER,
-		thumbnailHighHeight   INTEGER,
-		thumbnailMediumUrl    TEXT,
-		thumbnailMediumWidth  INTEGER,
-		thumbnailMediumHeight INTEGER,
-		embedHeight           INTEGER,
-		embedWidth            INTEGER,
-		embedHtml             TEXT
+                videoId                TEXT PRIMARY KEY,
+                etag                   TEXT NOT NULL,
+                name                   TEXT NOT NULL,
+                channelId              TEXT NOT NULL,
+                channelTitle           TEXT NOT NULL,
+                title                  TEXT NOT NULL,
+                description            TEXT NOT NULL,
+		publishdAt             TEXT NOT NULL,
+		thumbnailDefaultUrl    TEXT NOT NULL,
+		thumbnailDefaultWidth  INTEGER NOT NULL,
+		thumbnailDefaultHeight INTEGER NOT NULL,
+		thumbnailHighUrl       TEXT NOT NULL,
+		thumbnailHighWidth     INTEGER NOT NULL,
+		thumbnailHighHeight    INTEGER NOT NULL,
+		thumbnailMediumUrl     TEXT NOT NULL,
+		thumbnailMediumWidth   INTEGER NOT NULL,
+		thumbnailMediumHeight  INTEGER NOT NULL,
+		embedHeight            INTEGER NOT NULL,
+		embedWidth             INTEGER NOT NULL,
+		embedHtml              TEXT NOT NULL
 	)`
 	_, err := d.db.Exec(videoTableCreateQuery);
 	if  err != nil {
 		return errors.Wrap(err, "can not create video table")
 	}
 
-/*
-        commentTableCreateQuery := `
-            CREATE TABLE IF NOT EXISTS Video (
-                id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-                commentId             TEXT NOT NULL UNIQUE,
+        commentThreadTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS commentThread (
+                commentThreadId       TEXT PRIMARY KEY,
                 etag                  TEXT NOT NULL,
-                name                  TEXT NOT NULL,
-                channelId             TEXT NOT NULL,
-                channelTitle          TEXT,
-                title                 TEXT,
-                description           TEXT,
-		publishdAt            INTEGER,
-		thumbnailHighUrl      TEXT,
-		thumbnailHighWidth    TEXT,
-		thumbnailHighHeight   TEXT,
-		thumbnailMediumUrl    TEXT,
-		thumbnailMediumWidth  TEXT,
-		thumbnailMediumHeight TEXT,
-		tweetId               TEXT                                 
+		name                  TEXT NOT NULL,
+		channelId             TEXT NOT NULL,
+		videoId               TEXT NOT NULL
 	)`
-	_, err := dbo.db.Exec(videoTableCreateQuery);
+	_, err = d.db.Exec(commentThreadTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create video table")
+		return errors.Wrap(err, "can not create commentThread table")
 	}
-        // videoIdでvideoを検索するのに使う
-        videoVideoIdIndexCreateQuery := `
-            CREATE UNIQUE INDEX IF NOT EXISTS video_videoId_index ON video(videoId)`
-        _, err = dbo.db.Exec(videoVideoIdIndexCreateQuery);
-        if  err != nil {
-                return errors.Wrap(err, "can not create video_videoId_index index")
-        }
-*/
+
+        topLevelCommentTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS topLevelComment (
+                commentId             TEXT PRIMARY KEY,
+                etag                  TEXT NOT NULL,
+		channelId             TEXT NOT NULL,
+		videoId               TEXT NOT NULL,
+		commentThreadId       TEXT NOT NULL,
+		authorChannelUrl      TEXT NOT NULL,
+		authorDisplayName     TEXT NOT NULL,
+		authorProfileImageUrl TEXT NOT NULL,
+		moderationStatus      TEXT NOT NULL,
+		textDisplay           TEXT NOT NULL,
+		textOriginal          TEXT NOT NULL,
+		publishAt             TEXT NOT NULL,
+		updateAt              TEXT NOT NULL
+	)`
+	_, err = d.db.Exec(topLevelCommentTableCreateQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create topLevelComment table")
+	}
+
+        replyCommentTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS replyComment (
+                commentId             TEXT PRIMARY KEY,
+                etag                  TEXT NOT NULL,
+		channelId             TEXT NOT NULL,
+		videoId               TEXT NOT NULL,
+		commentThreadId       TEXT NOT NULL,
+		parentId              TEXT NOT NULL, 
+		authorChannelUrl      TEXT NOT NULL,
+		authorDisplayName     TEXT NOT NULL,
+		authorProfileImageUrl TEXT NOT NULL,
+		moderationStatus      TEXT NOT NULL,
+		textDisplay           TEXT NOT NULL,
+		textOriginal          TEXT NOT NULL,
+		publishAt             TEXT NOT NULL,
+		updateAt              TEXT NOT NULL
+	)`
+	_, err = d.db.Exec(replyCommentTableCreateQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create replyComment table")
+	}
 
 	return nil
 }
@@ -190,12 +554,12 @@ func (d *DatabaseOperator) createTables() (error) {
 func (d *DatabaseOperator) Open() (error) {
         db, err := sql.Open("sqlite3", d.databasePath)
         if err != nil {
-                return errors.Errorf("can not open database")
+                return errors.Wrapf(err, "can not open database")
         }
         d.db = db
         err = d.createTables()
         if err != nil {
-                return errors.Errorf("can not create table of database")
+                return errors.Wrapf(err, "can not create table of database")
         }
         return nil
 }

@@ -38,10 +38,12 @@ func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
 func main() {
 	var configFile string
 	var verbose bool
-	var checkModified bool
+	var checkVideoModified bool
+	var checkCommentModified bool
 	flag.StringVar(&configFile, "config", "clipper.conf", "config file")
 	flag.BoolVar(&verbose, "verbose", false, "verbose")
-	flag.BoolVar(&checkModified, "checkModified", false, "check modified")
+	flag.BoolVar(&checkVideoModified, "checkVideoModified", false, "check video modified")
+	flag.BoolVar(&checkCommentModified, "checkCommentModified", false, "check comment modified")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(configFile)
 	conf := new(clipperConfig)
@@ -72,7 +74,7 @@ func main() {
 		log.Printf("can not create video searcher of youtube: %v", err)
 		return
 	}
-	err = youtubeVideoSearcher.Search(checkModified)
+	err = youtubeVideoSearcher.Search(checkVideoModified, checkCommentModified)
 	if err != nil {
 		log.Printf("can not search youtube video: %v", err)
 		return
