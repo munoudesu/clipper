@@ -47,7 +47,7 @@ func main() {
 	flag.BoolVar(&checkVideoModified, "checkVideoModified", false, "check video modified")
 	flag.BoolVar(&checkCommentModified, "checkCommentModified", false, "check comment modified")
 	flag.BoolVar(&allSearch, "allSearch", false, "all search")
-	flag.BoolVar(&videoOnly, "videOnly", false, "video only")
+	flag.BoolVar(&videoOnly, "videoOnly", false, "video only")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(configFile)
 	conf := new(clipperConfig)
