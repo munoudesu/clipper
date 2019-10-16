@@ -61,6 +61,9 @@ func main() {
 	var recentVideo bool
 	var checkVideoModified bool
 	var checkCommentModified bool
+	var skipSearch bool
+	var skipBuild bool
+	var skipPublish bool
 	flag.StringVar(&configFile, "config", "clipper.conf", "config file")
 	flag.BoolVar(&verbose, "verbose", false, "verbose")
 	flag.BoolVar(&searchVideo, "searchVideo", true, "search video")
@@ -68,6 +71,9 @@ func main() {
 	flag.BoolVar(&recentVideo, "recentVideo", true, "recent video")
 	flag.BoolVar(&checkVideoModified, "checkVideoModified", false, "check video modified")
 	flag.BoolVar(&checkCommentModified, "checkCommentModified", false, "check comment modified")
+	flag.BoolVar(&skipSearch, "skipSearch", false, "skip search")
+	flag.BoolVar(&skipBuild, "skipBuild", false, "skip build")
+	flag.BoolVar(&skipPublish, "skipPublish", false, "skip Publish")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(configFile)
 	conf := new(clipperConfig)
@@ -99,20 +105,28 @@ func main() {
 		return
 	}
 	defer databaseOperator.Close()
-	youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKey, conf.Youtube.Channels, databaseOperator)
-	if err != nil {
-		log.Printf("can not create video searcher of youtube: %v", err)
-		return
+	if !skipSearch {
+		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKey, conf.Youtube.Channels, databaseOperator)
+		if err != nil {
+			log.Printf("can not create searcher of youtube: %v", err)
+			return
+		}
+		err = youtubeSearcher.Search(searchVideo, searchComment, recentVideo, checkVideoModified, checkCommentModified)
+		if err != nil {
+			log.Printf("can not search youtube: %v", err)
+			return
+		}
 	}
-	err = youtubeSearcher.Search(searchVideo, searchComment, recentVideo, checkVideoModified, checkCommentModified)
-	if err != nil {
-		log.Printf("can not search youtube video: %v", err)
-		return
+	if !skipBuild {
+		builder, err := builder.NewBuilder(conf.Builder.BuildDirPath, conf.Youtube.Channels, databaseOperator)
+		if err != nil {
+			log.Printf("can not create builder: %v", err)
+			return
+		}
+		err = builder.Build()
+		if err != nil {
+			log.Printf("can not build page: %v", err)
+			return
+		}
 	}
-	builder, err := builder.NewBuilder(conf.Builder.BuildDirPath, conf.Youtube.Channels, databaseOperator)
-	if err != nil {
-		log.Printf("can not search youtube video: %v", err)
-		return
-	}
-	err = builder.Build()
 }
