@@ -52,12 +52,12 @@ func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, comme
 		CommentThreadId: item.Id,
 		Etag: item.Etag,
 		Name: video.Name,
-		ChannelId: item.Snippet.ChannelId,
+		ChannelId: video.ChannelId,
 		VideoId: item.Snippet.VideoId,
 		TopLevelComment: &database.TopLevelComment {
 			CommentId: item.Snippet.TopLevelComment.Id,
 			Etag: item.Snippet.TopLevelComment.Etag,
-			ChannelId: item.Snippet.ChannelId,
+			ChannelId: video.ChannelId,
 			VideoId: item.Snippet.TopLevelComment.Snippet.VideoId,
 			CommentThreadId: commentThreadId,
 			AuthorChannelUrl: item.Snippet.TopLevelComment.Snippet.AuthorChannelUrl,
@@ -76,7 +76,7 @@ func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, comme
 			replyComment := &database.ReplyComment {
 				CommentId: r.Id,
 				Etag: r.Etag,
-				ChannelId: item.Snippet.ChannelId,
+				ChannelId: video.ChannelId,
 				VideoId: r.Snippet.VideoId,
 				CommentThreadId: commentThreadId,
 				ParentId: r.Snippet.ParentId,
@@ -118,7 +118,7 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 			}
 			if ok {
 				if !checkModified {
-					log.Printf("skipped because video is already exists in database (commentThreadId = %v, etag = %v)", commentThread.CommentThreadId, commentThread.Etag)
+					log.Printf("skipped because commentThread is already exists in database (commentThreadId = %v, etag = %v)", commentThread.CommentThreadId, commentThread.Etag)
 					continue
 				}
 				// 更新チェックもする場合

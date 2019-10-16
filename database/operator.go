@@ -80,10 +80,74 @@ type ReplyComment struct {
 	UpdateAt              string
 }
 
+type CommonComment ReplyComment
+
 type ChannelPage struct {
 	ChannelId string
 	PageHash  string
 	Dirty     int64
+}
+
+func (d *DatabaseOperator) GetAllCommentsByChannelIdAndLikeText(channelId string, likeText string) ([]*CommonComment, error) {
+	commonComments := make([]*CommonComment, 0)
+        topLevelCommentRows, err := d.db.Query(`SELECT * FROM topLevelComment Where channelId = ? AND textOriginal like ?`, channelId, likeText)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get topLevelComment by channelId and likeText from database")
+        }
+        defer topLevelCommentRows.Close()
+        for topLevelCommentRows.Next() {
+                commonComment := &CommonComment{}
+                // カーソルから値を取得
+                err := topLevelCommentRows.Scan(
+                    &commonComment.CommentId,
+                    &commonComment.Etag,
+                    &commonComment.ChannelId,
+                    &commonComment.VideoId,
+                    &commonComment.CommentThreadId,
+                    &commonComment.AuthorChannelUrl,
+                    &commonComment.AuthorDisplayName,
+                    &commonComment.AuthorProfileImageUrl,
+                    &commonComment.ModerationStatus,
+                    &commonComment.TextDisplay,
+                    &commonComment.TextOriginal,
+                    &commonComment.PublishAt,
+                    &commonComment.UpdateAt,
+                )
+                if err != nil {
+                        return nil, errors.Wrap(err, "can not scan topLevelComment by channelId and likeText from database")
+                }
+		commonComments = append(commonComments, commonComment)
+        }
+        replyCommentRows, err := d.db.Query(`SELECT * FROM replyComment Where channelId = ? AND textOriginal like ?`, channelId, likeText)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get replyComment by channelId and likeText from database")
+        }
+        defer replyCommentRows.Close()
+        for replyCommentRows.Next() {
+                commonComment := &CommonComment{}
+                // カーソルから値を取得
+                err := replyCommentRows.Scan(
+                    &commonComment.CommentId,
+                    &commonComment.Etag,
+                    &commonComment.ChannelId,
+                    &commonComment.VideoId,
+                    &commonComment.CommentThreadId,
+                    &commonComment.ParentId,
+                    &commonComment.AuthorChannelUrl,
+                    &commonComment.AuthorDisplayName,
+                    &commonComment.AuthorProfileImageUrl,
+                    &commonComment.ModerationStatus,
+                    &commonComment.TextDisplay,
+                    &commonComment.TextOriginal,
+                    &commonComment.PublishAt,
+                    &commonComment.UpdateAt,
+                )
+                if err != nil {
+                        return nil, errors.Wrap(err, "can not scan replyComment by channelId and likeText from database")
+                }
+		commonComments = append(commonComments, commonComment)
+        }
+        return commonComments, nil
 }
 
 func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (error) {

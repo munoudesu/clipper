@@ -26,7 +26,9 @@ type clipperDatabaseConfig struct {
 }
 
 type clipperBuilderConfig struct {
-	BuildDirPath string `toml:"buildDirPath"`
+	BuildDirPath     string `toml:"buildDirPath"`
+	MaxTimeRange     int64  `toml:"maxTimeRange"`
+	AdjustStartTime  int64  `toml:"adjustStartTime"`
 }
 
 type clipperIpfsConfig struct {
@@ -118,7 +120,7 @@ func main() {
 		}
 	}
 	if !skipBuild {
-		builder, err := builder.NewBuilder(conf.Builder.BuildDirPath, conf.Youtube.Channels, databaseOperator)
+		builder, err := builder.NewBuilder(conf.Builder.BuildDirPath, conf.Builder.MaxTimeRange, conf.Builder.AdjustStartTime, conf.Youtube.Channels, databaseOperator)
 		if err != nil {
 			log.Printf("can not create builder: %v", err)
 			return
