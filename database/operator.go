@@ -80,6 +80,12 @@ type ReplyComment struct {
 	UpdateAt              string
 }
 
+type ChannelPage struct {
+	ChannelId string
+	PageHash  string
+	Dirty     int64
+}
+
 func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (error) {
 	for _, replyComment := range replyComments {
 		res, err := d.db.Exec(
@@ -323,8 +329,8 @@ func (d *DatabaseOperator) GetCommentThreadByCommentThreadId(commentThreadId str
         return nil, false, nil
 }
 
-func (d *DatabaseOperator) GetVideos() ([]*Video, error) {
-        rows, err := d.db.Query(`SELECT * FROM video`)
+func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, error) {
+        rows, err := d.db.Query(`SELECT * FROM video WHERE channelId = ?`, channelId)
         if err != nil {
                 return nil, errors.Wrap(err, "can not get videos from database")
         }
@@ -463,6 +469,70 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*Video, bool, erro
         return nil, false, nil
 }
 
+func (d *DatabaseOperator) GetChannelPageByChannelId(channelId string) (*ChannelPage, bool, error) {
+        rows, err := d.db.Query(`SELECT * FROM channelPage WHERE channelId = ?`, channelId)
+        if err != nil {
+                return nil, false, errors.Wrap(err, "can not get channelPage by chanelId from database")
+        }
+        defer rows.Close()
+        for rows.Next() {
+                channelPage := &ChannelPage{}
+                // カーソルから値を取得
+                err := rows.Scan(
+                    &channelPage.ChannelId,
+                    &channelPage.PageHash,
+                    &channelPage.Dirty,
+                )
+                if err != nil {
+                        return nil, false, errors.Wrap(err, "can not scan channelPage by channelId from database")
+                }
+		return channelPage, true, nil
+        }
+        return nil, false, nil
+
+}
+
+func (d *DatabaseOperator) UpdatePageHashAndDirtyOfChannelPage(channelId string, pageHash string, dirty int64) (error) {
+	res, err := d.db.Exec(
+            `INSERT OR REPLACE INTO channelPage (
+                channelId,
+                pageHash,
+                dirty
+            ) VALUES (
+                ?, ?, ?
+            )`,
+	    channelId,
+	    pageHash,
+	    dirty,
+        )
+        if err != nil {
+                return errors.Wrap(err, "can not insert channelPage")
+        }
+        // 挿入処理の結果からIDを取得
+        id, err := res.LastInsertId()
+        if err != nil {
+                return errors.Wrap(err, "can not get insert id of channelPage")
+        }
+	log.Printf("update channel page (channelId = %v, insert id = %v)", channelId, id)
+
+	return nil
+}
+
+func (d *DatabaseOperator) UpdateDirtyOfChannelPage(channelId string, dirty int64) (error) {
+	res, err := d.db.Exec( `UPDATE channelPage SET dirty = ? WHERE channelId = ?` , dirty, channelId)
+        if err != nil {
+                return errors.Wrap(err, "can not update channelPage")
+        }
+        // 更新処理の結果からIDを取得
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+                return errors.Wrap(err, "can not get rowsAffected of channelPage")
+        }
+        log.Printf("update channel page (channelId = %v, rowsAffected = %v)", channelId, rowsAffected)
+
+	return nil
+}
+
 func (d *DatabaseOperator) createTables() (error) {
         videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS Video (
@@ -546,6 +616,17 @@ func (d *DatabaseOperator) createTables() (error) {
 	_, err = d.db.Exec(replyCommentTableCreateQuery);
 	if  err != nil {
 		return errors.Wrap(err, "can not create replyComment table")
+	}
+
+        channelPageTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS channelPage (
+                channelId TEXT PRIMARY KEY,
+                pageHash  TEXT NOT NULL
+                dirty     INTEGER NOT NULL
+	)`
+	_, err = d.db.Exec(channelPageTableCreateQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create channelPage table")
 	}
 
 	return nil

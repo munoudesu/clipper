@@ -6,21 +6,39 @@ import (
 	"encoding/json"
 	"github.com/munoudesu/clipper/configurator"
 	"github.com/munoudesu/clipper/youtubedataapi"
+	"github.com/munoudesu/clipper/twitterapi"
 	"github.com/munoudesu/clipper/database"
+	"github.com/munoudesu/clipper/builder"
 )
 
 type clipperYoutubeConfig struct {
-	ApiKeyFile string `toml:"apiKeyFile"`
-	Channels []*youtubedataapi.Channel`toml:"channels"`
+	ApiKeyFile string                `toml:"apiKeyFile"`
+	Channels youtubedataapi.Channels `toml:"channels"`
+}
+
+type clipperTwitterConfig struct {
+	ApiKeyFile string      `toml:"apiKeyFile"`
+	Users twitterapi.Users `toml:"users"`
 }
 
 type clipperDatabaseConfig struct {
 	DatabasePath string `toml:"databasePath"`
 }
 
+type clipperBuilderConfig struct {
+	BuildDirPath string `toml:"buildDirPath"`
+}
+
+type clipperIpfsConfig struct {
+	AddrPort string `toml:"addrPort"`
+}
+
 type clipperConfig struct {
-	Youtube  *clipperYoutubeConfig    `toml:"youtube"`
-	Database *clipperDatabaseConfig   `toml:"database"`
+	Youtube  *clipperYoutubeConfig  `toml:"youtube"`
+	Twitter  *clipperTwitterConfig  `toml:"twitter"`
+	Database *clipperDatabaseConfig `toml:"database"`
+	Builder  *clipperBuilderConfig  `toml:"builder"`
+	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
 }
 
 func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
@@ -64,6 +82,12 @@ func main() {
 		log.Printf("can not load api key of youtube: %v", err)
 		return
 	}
+	twitterApiKeyPair, err := twitterapi.LoadApiKey(conf.Twitter.ApiKeyFile)
+	if err != nil {
+		log.Printf("can not load api key pair of twitter: %v", err)
+		return
+	}
+	log.Printf("api key = %v api secret key = %v", twitterApiKeyPair.ApiKey, twitterApiKeyPair.ApiSecretKey)
 	databaseOperator, err := database.NewDatabaseOperator(conf.Database.DatabasePath)
 	if err != nil {
 		 log.Printf("can not create database operator: %v", err)
@@ -75,14 +99,20 @@ func main() {
 		return
 	}
 	defer databaseOperator.Close()
-	youtubeVideoSearcher, err := youtubedataapi.NewVideoSearcher(youtubeApiKey, conf.Youtube.Channels, databaseOperator)
+	youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKey, conf.Youtube.Channels, databaseOperator)
 	if err != nil {
 		log.Printf("can not create video searcher of youtube: %v", err)
 		return
 	}
-	err = youtubeVideoSearcher.Search(searchVideo, searchComment, recentVideo, checkVideoModified, checkCommentModified)
+	err = youtubeSearcher.Search(searchVideo, searchComment, recentVideo, checkVideoModified, checkCommentModified)
 	if err != nil {
 		log.Printf("can not search youtube video: %v", err)
 		return
 	}
+	builder, err := builder.NewBuilder(conf.Builder.BuildDirPath, conf.Youtube.Channels, databaseOperator)
+	if err != nil {
+		log.Printf("can not search youtube video: %v", err)
+		return
+	}
+	err = builder.Build()
 }

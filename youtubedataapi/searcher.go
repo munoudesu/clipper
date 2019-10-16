@@ -16,16 +16,18 @@ type Channel struct {
 	ChannelId string `toml:"channelId"`
 }
 
-type VideoSearcher struct {
+type Channels []*Channel
+
+type Searcher struct {
 	apiKey           string
-	channels         []*Channel
+	channels         Channels
 	ctx              context.Context
 	youtubeService   *youtube.Service
 	databaseOperator *database.DatabaseOperator
 }
 
-func (v *VideoSearcher)getCommentThreadByCommentThreadId(video *database.Video, commentThreadId string, etag string) (*database.CommentThread, bool, bool, error) {
-        commentThreadsService := youtube.NewCommentThreadsService(v.youtubeService)
+func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, commentThreadId string, etag string) (*database.CommentThread, bool, bool, error) {
+        commentThreadsService := youtube.NewCommentThreadsService(s.youtubeService)
 	commentThreadsListCall := commentThreadsService.List("id,replies,snippet")
 	commentThreadsListCall.MaxResults(100)
 	commentThreadsListCall.Id(commentThreadId)
@@ -95,8 +97,8 @@ func (v *VideoSearcher)getCommentThreadByCommentThreadId(video *database.Video, 
 }
 
 
-func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkModified  bool) (error) {
-        commentThreadsService := youtube.NewCommentThreadsService(v.youtubeService)
+func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModified  bool) (error) {
+        commentThreadsService := youtube.NewCommentThreadsService(s.youtubeService)
         pageToken := ""
         for {
                 commentThreadsListCall := commentThreadsService.List("id")
@@ -110,7 +112,7 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 			return  errors.Wrapf(err, "can not do comment thread list call")
                 }
                 for _, item := range commentThreadListResponse.Items {
-			commentThread, ok, err := v.databaseOperator.GetCommentThreadByCommentThreadId(item.Id)
+			commentThread, ok, err := s.databaseOperator.GetCommentThreadByCommentThreadId(item.Id)
 			if err != nil {
 				return errors.Wrapf(err, "can not get commentThread by commentThreadId from database (commentThreadId = %v)", item.Id)
 			}
@@ -120,7 +122,7 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 					continue
 				}
 				// 更新チェックもする場合
-				newCommentThread, notModified, notFound, err := v.getCommentThreadByCommentThreadId(video, commentThread.CommentThreadId, commentThread.Etag)
+				newCommentThread, notModified, notFound, err := s.getCommentThreadByCommentThreadId(video, commentThread.CommentThreadId, commentThread.Etag)
 				if err != nil {
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", commentThread.CommentThreadId)
 				}
@@ -132,13 +134,13 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 					log.Printf("skipped because commentThread resource is not modified (commentThreadIdId = %v, etag = %v)", newCommentThread.CommentThreadId, newCommentThread.Etag)
 					continue
 				}
-				err = v.databaseOperator.UpdateCommentThread(newCommentThread)
+				err = s.databaseOperator.UpdateCommentThread(newCommentThread)
 				if err != nil {
 					return errors.Wrapf(err, "can not update commentThread (commentThreadId = %v, etag = %v)", newCommentThread.CommentThreadId, newCommentThread.Etag)
 				}
 			} else {
 				// DB上にレコードがまだないので新規に情報を取得して追加
-				newCommentThread, _, notFound,  err := v.getCommentThreadByCommentThreadId(video, item.Id, "")
+				newCommentThread, _, notFound,  err := s.getCommentThreadByCommentThreadId(video, item.Id, "")
 				if err != nil {
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", item.Id)
 				}
@@ -146,7 +148,7 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 					log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", item.Id)
 					continue
 				}
-				err = v.databaseOperator.UpdateCommentThread(newCommentThread)
+				err = s.databaseOperator.UpdateCommentThread(newCommentThread)
 				if err != nil {
 					return errors.Wrapf(err, "can not update commentThread (commentThreadId = %v, etag = %v)", newCommentThread.CommentThreadId, newCommentThread.Etag)
 				}
@@ -162,8 +164,8 @@ func (v *VideoSearcher)searchCommentThreadsByVideo(video *database.Video, checkM
 	return nil
 }
 
-func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, bool, error) {
-	videoService :=	youtube.NewVideosService(v.youtubeService)
+func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, bool, error) {
+	videoService :=	youtube.NewVideosService(s.youtubeService)
 	videosListCall := videoService.List("id,snippet,player")
 	videosListCall.Id(videoId)
 	videosListCall.MaxResults(50)
@@ -207,9 +209,9 @@ func (v *VideoSearcher)getVideoByVideoId(channel *Channel, videoId string, etag 
 	return video, false, false, nil
 }
 
-func (v *VideoSearcher)searchVideosByChannel(channel *Channel, recentVideo bool, checkModified bool) (error) {
+func (s *Searcher)searchVideosByChannel(channel *Channel, recentVideo bool, checkModified bool) (error) {
 	log.Printf("search video of channel %v", channel.ChannelId)
-        searchService := youtube.NewSearchService(v.youtubeService)
+        searchService := youtube.NewSearchService(s.youtubeService)
         pageToken := ""
         for {
                 searchListCall := searchService.List("id")
@@ -233,7 +235,7 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, recentVideo bool,
 			return errors.Wrapf(err, "can not do search list call (channelId = %v)", channel.ChannelId)
                 }
                 for _, item := range searchListResponse.Items {
-			video, ok, err := v.databaseOperator.GetVideoByVideoId(item.Id.VideoId)
+			video, ok, err := s.databaseOperator.GetVideoByVideoId(item.Id.VideoId)
 			if err != nil {
 				return errors.Wrapf(err, "can not get video by videoId from database (videoId = %v)", item.Id.VideoId)
 			}
@@ -243,7 +245,7 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, recentVideo bool,
 					continue
 				}
 				// 更新チェックもする場合
-				newVideo, notModified, notFound, err := v.getVideoByVideoId(channel, video.VideoId, video.Etag)
+				newVideo, notModified, notFound, err := s.getVideoByVideoId(channel, video.VideoId, video.Etag)
 				if err != nil {
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", video.VideoId)
 				}
@@ -255,13 +257,13 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, recentVideo bool,
 					log.Printf("skipped because video resource is not modified (videoId = %v, etag = %v)", newVideo.VideoId, newVideo.Etag)
 					continue
 				}
-				err = v.databaseOperator.UpdateVideo(newVideo)
+				err = s.databaseOperator.UpdateVideo(newVideo)
 				if err != nil {
 					return errors.Wrapf(err, "can not update video (videoId = %v, etag = %v)", newVideo.VideoId, newVideo.Etag)
 				}
 			} else {
 				// DB上にレコードがまだないので新規に情報を取得して追加
-				newVideo, _, notFound, err := v.getVideoByVideoId(channel, item.Id.VideoId, "")
+				newVideo, _, notFound, err := s.getVideoByVideoId(channel, item.Id.VideoId, "")
 				if err != nil {
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", item.Id.VideoId)
 				}
@@ -269,7 +271,7 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, recentVideo bool,
 					log.Printf("skipped because not found video resource (videoId = %v)", item.Id.VideoId)
 					continue
 				}
-				err = v.databaseOperator.UpdateVideo(newVideo)
+				err = s.databaseOperator.UpdateVideo(newVideo)
 				if err != nil {
 					return errors.Wrapf(err, "can not update video (videoId = %v, etag = %v)", newVideo.VideoId, newVideo.Etag)
 				}
@@ -284,37 +286,37 @@ func (v *VideoSearcher)searchVideosByChannel(channel *Channel, recentVideo bool,
 	return nil
 }
 
-func (v *VideoSearcher)Search(searchVideo bool, searchComment bool, recentVideo bool, checkVideoModified bool, checkCommentModified bool) (error) {
-	if searchVideo {
-		for _, channel := range v.channels {
-			err := v.searchVideosByChannel(channel, recentVideo, checkVideoModified)
+func (s *Searcher)Search(searchVideo bool, searchComment bool, recentVideo bool, checkVideoModified bool, checkCommentModified bool) (error) {
+	for _, channel := range s.channels {
+		if searchVideo {
+			err := s.searchVideosByChannel(channel, recentVideo, checkVideoModified)
 			if err != nil {
 				return errors.Wrapf(err, "can not search videos by channel (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
 			}
 		}
-	}
-	if searchComment {
-		videos, err := v.databaseOperator.GetVideos()
-		if err != nil {
-			return errors.Wrapf(err, "can not get videos from database")
-		}
-		for _, video := range videos {
-			err := v.searchCommentThreadsByVideo(video, checkCommentModified)
+		if searchComment {
+			videos, err := s.databaseOperator.GetVideosByChannelId(channel.ChannelId)
 			if err != nil {
-				return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
+				return errors.Wrapf(err, "can not get videos from database")
+			}
+			for _, video := range videos {
+				err := s.searchCommentThreadsByVideo(video, checkCommentModified)
+				if err != nil {
+					return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func NewVideoSearcher(apiKey string, channels []*Channel, databaseOperator *database.DatabaseOperator) (*VideoSearcher, error) {
+func NewSearcher(apiKey string, channels []*Channel, databaseOperator *database.DatabaseOperator) (*Searcher, error) {
         ctx := context.Background()
         youtubeService, err := youtube.NewService(ctx, option.WithAPIKey(apiKey))
         if err != nil {
 		return nil, errors.Wrapf(err, "can not create youtube service")
 	}
-	return &VideoSearcher{
+	return &Searcher{
 		channels: channels,
 		ctx: ctx,
 		youtubeService: youtubeService,
