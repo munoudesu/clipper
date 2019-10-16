@@ -621,7 +621,7 @@ func (d *DatabaseOperator) createTables() (error) {
         channelPageTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS channelPage (
                 channelId TEXT PRIMARY KEY,
-                pageHash  TEXT NOT NULL
+                pageHash  TEXT NOT NULL,
                 dirty     INTEGER NOT NULL
 	)`
 	_, err = d.db.Exec(channelPageTableCreateQuery);
