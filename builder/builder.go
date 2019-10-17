@@ -3,6 +3,7 @@ package builder
 import (
         "os"
         "log"
+        "sort"
         "regexp"
         "strings"
         "strconv"
@@ -11,7 +12,7 @@ import (
         "github.com/munoudesu/clipper/database"
 )
 
-const timeRangeRegexpExpr = "([0-9]{2}:[0-9]{2}(:[0-9]{2})?|[0-9]:[0-9](:[0-9])?)(([~-～－―]([0-9]{2}:[0-9]{2}(:[0-9]{2})?|[0-9]:[0-9](:[0-9])?))|(@([0-9]+[hH])?([0-9]+[mM])?([0-9]+[sS])?))?"
+const timeRangeRegexpExpr = "[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?(([ 　]*[~-～－―][ 　]*[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?)|([ 　]*@[ 　]*([0-9]+[hH])?([0-9]+[mM])?([0-9]+[sS])?))?"
 const startEndSepRegexExpr = "[~-～－―]"
 
 type timeRange struct {
@@ -19,28 +20,34 @@ type timeRange struct {
 	end           int64
 }
 
-type timeRangeComments struct {
-	start         int64
-	end           int64
-	textOriginals map[string]bool
+type commentProperty struct {
+	author      string
+	authorImage string
+	text        string
 }
 
-type pageVideo struct {
-	timeRangeCommentsMap map[int64]*timeRangeComments
+type timeRangeProperty struct {
+	start    int64
+	end      int64
+	comments map[commentProperty]bool
 }
 
-type pageSource struct {
-	videos map[string]*pageVideo
+type videoProperty struct {
+	timeRangeList           []*timeRangeProperty
+}
+
+type pageProperty struct {
+	videos map[string]*videoProperty
 }
 
 type Builder struct {
-	buildDirPath      string
-	channels          youtubedataapi.Channels
-	databaseOperator  *database.DatabaseOperator
-	timeRangeRegexp   *regexp.Regexp
-	startEndSepRegexp *regexp.Regexp
-	maxTimeRange      int64
-	adjustStartTime   int64
+	buildDirPath        string
+	channels            youtubedataapi.Channels
+	databaseOperator    *database.DatabaseOperator
+	timeRangeRegexp     *regexp.Regexp
+	startEndSepRegexp   *regexp.Regexp
+	maxDuration         int64
+	adjustStartTimeSpan int64
 }
 
 func (b *Builder)timeStringToSeconds(timeString string) (int64) {
@@ -87,10 +94,10 @@ func (b *Builder)timeStringToSeconds(timeString string) (int64) {
 	}
 }
 
-func (b *Builder)periodicStringToSeconds(periodicString string) (int64) {
+func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 	// parse 1h2m3s, 1h2m 1h3s, 1m2s, 1s
 	var seconds int64
-	elems := strings.SplitN(periodicString, "h", 2)
+	elems := strings.SplitN(durationString, "h", 2)
 	if len(elems) == 2 {
 		hourString := elems[0]
 		hour, err := strconv.ParseInt(hourString, 10, 64)
@@ -99,9 +106,9 @@ func (b *Builder)periodicStringToSeconds(periodicString string) (int64) {
 			return 0
 		}
 		seconds += hour * 3600
-		periodicString = elems[1]
+		durationString = elems[1]
 	}
-	elems = strings.SplitN(periodicString, "m", 2)
+	elems = strings.SplitN(durationString, "m", 2)
 	if len(elems) == 2 {
 		minString := elems[0]
 		min, err := strconv.ParseInt(minString, 10, 64)
@@ -110,9 +117,9 @@ func (b *Builder)periodicStringToSeconds(periodicString string) (int64) {
 			return 0
 		}
 		seconds += min * 60
-		periodicString = elems[1]
+		durationString = elems[1]
 	}
-	elems = strings.SplitN(periodicString, "s", 2)
+	elems = strings.SplitN(durationString, "s", 2)
 	if len(elems) == 2 {
 		secString := elems[0]
 		sec, err := strconv.ParseInt(secString, 10, 64)
@@ -135,8 +142,8 @@ func (b *Builder)parseTimeRange(timeRangeString string) (*timeRange) {
 		if endSeconds < startSeconds  {
 			endSeconds = 0
 		}
-		if endSeconds > startSeconds + b.maxTimeRange {
-			endSeconds = startSeconds + b.maxTimeRange
+		if endSeconds > startSeconds + b.maxDuration {
+			endSeconds = startSeconds + b.maxDuration
 		}
 		return &timeRange {
 			start: startSeconds,
@@ -151,12 +158,12 @@ func (b *Builder)parseTimeRange(timeRangeString string) (*timeRange) {
 			start: startSeconds,
 			end: 0,
 		}
-		periodicString := elems[1]
-		periodicSeconds := b.periodicStringToSeconds(periodicString)
-		if periodicSeconds > b.maxTimeRange {
-			timeRange.end = startSeconds + b.maxTimeRange
-		} else if periodicSeconds > 0 {
-			timeRange.end = startSeconds +  periodicSeconds
+		durationString := elems[1]
+		durationSeconds := b.durationStringToSeconds(durationString)
+		if durationSeconds > b.maxDuration {
+			timeRange.end = startSeconds + b.maxDuration
+		} else if durationSeconds > 0 {
+			timeRange.end = startSeconds +  durationSeconds
 		}
 		return timeRange
 	}
@@ -180,51 +187,111 @@ func (b *Builder)parseTimeRangeList(textOriginal string) ([]*timeRange) {
 	return timeRangeList
 }
 
-func (b *Builder)buildPage(channel *youtubedataapi.Channel) (string, error) {
-log.Printf("---")
+func (b *Builder)adjustTimRangeList(timeRangeList []*timeRangeProperty) ([]*timeRangeProperty) {
+	// start時間がadjustStartTimeSpan以内のずれなら一つにまとめる、この時startとendは最大になるようにする
+	for {
+		var prevTimeRange *timeRangeProperty
+		var lastTimeRange *timeRangeProperty
+		adjustIdx := -1
+		for idx, timeRange := range timeRangeList {
+			if lastTimeRange == nil {
+				lastTimeRange = timeRange
+				continue
+			}
+			prevTimeRange = lastTimeRange
+			lastTimeRange = timeRange
+			if prevTimeRange.start + b.adjustStartTimeSpan >= lastTimeRange.start  {
+				if prevTimeRange.end < lastTimeRange.end {
+					prevTimeRange.end = lastTimeRange.end
+				}
+				for comment, _ := range lastTimeRange.comments {
+					prevTimeRange.comments[comment] = true
+				}
+				adjustIdx = idx
+				break
+			}
+		}
+		if adjustIdx == -1 {
+			break
+		}
+		timeRangeList = append(timeRangeList[:adjustIdx], timeRangeList[adjustIdx+1:]...)
+	}
+	// 任意の要素のend時間が次の要素のstartよりも大きい場合はendを次の要素のstartにする
+	var prevTimeRange *timeRangeProperty
+	var lastTimeRange *timeRangeProperty
+	for _, timeRange := range timeRangeList {
+		if lastTimeRange == nil {
+			lastTimeRange = timeRange
+			continue
+		}
+		prevTimeRange = lastTimeRange
+		lastTimeRange = timeRange
+		if prevTimeRange.end >= lastTimeRange.start  {
+			prevTimeRange.end = lastTimeRange.start
+		}
+	}
+	return timeRangeList
+}
+
+func (b *Builder)makePageProperty(channel *youtubedataapi.Channel) (*pageProperty, error) {
 	comments, err := b.databaseOperator.GetAllCommentsByChannelIdAndLikeText(channel.ChannelId, "%:%")
 	if err != nil {
-		return "", errors.Wrapf(err, "can not get comments from database (channelId = %v)", channel.ChannelId)
+		return nil, errors.Wrapf(err, "can not get comments from database (channelId = %v)", channel.ChannelId)
 	}
-log.Printf("%v", len(comments))
-	pageSource := &pageSource{
-		videos: make(map[string]*pageVideo),
+	pageProp := &pageProperty{
+		videos: make(map[string]*videoProperty),
 	}
 	for _, comment := range comments {
-		timeRangeList := b.parseTimeRangeList(comment.TextOriginal)
-		pVideo, ok := pageSource.videos[comment.VideoId]
+		videoProp, ok := pageProp.videos[comment.VideoId]
 		if !ok {
-			pVideo = &pageVideo{
-				timeRangeCommentsMap: make(map[int64]*timeRangeComments),
+			videoProp = &videoProperty{
+				timeRangeList: make([]*timeRangeProperty, 0),
 			}
-			pageSource.videos[comment.VideoId] = pVideo
+			pageProp.videos[comment.VideoId] = videoProp
 		}
+		timeRangeList := b.parseTimeRangeList(comment.TextOriginal)
 		for _, timeRange := range timeRangeList {
-			adjustTime := timeRange.start/b.adjustStartTime
-			tComments, ok := pVideo.timeRangeCommentsMap[adjustTime]
-			if !ok {
-				tComments = &timeRangeComments{
-					start: timeRange.start,
-					end: timeRange.end,
-					textOriginals: make(map[string]bool),
-				}
-				pVideo.timeRangeCommentsMap[adjustTime] = tComments
+			timeRangeProp := &timeRangeProperty{
+				start: timeRange.start,
+				end: timeRange.end,
+				comments: make(map[commentProperty]bool),
 			}
-			if tComments.end == 0 && timeRange.end != 0 {
-				tComments.end = timeRange.end
+			commentProperty := commentProperty{
+				author: comment.AuthorDisplayName,
+				authorImage: comment.AuthorProfileImageUrl,
+				text: comment.TextOriginal,
 			}
-			tComments.textOriginals[comment.TextOriginal] = true
+			timeRangeProp.comments[commentProperty] = true
+			videoProp.timeRangeList = append(videoProp.timeRangeList, timeRangeProp)
+			continue
 		}
+		sort.Slice(videoProp.timeRangeList, func(i, j int) bool {
+			return videoProp.timeRangeList[i].start < videoProp.timeRangeList[j].start
+		})
+		videoProp.timeRangeList = b.adjustTimRangeList(videoProp.timeRangeList)
+	}
+	return pageProp, nil
+}
+
+func (b *Builder)buildPage(channel *youtubedataapi.Channel) (string, error) {
+	pageProp, err := b.makePageProperty(channel)
+	if err != nil {
+		return "", errors.Wrapf(err, "can not make page property (channelId = %v)", channel.ChannelId)
 	}
 
-	for videoId, pVideo := range pageSource.videos {
-		for _, tComments := range pVideo.timeRangeCommentsMap {
+	for videoId, videoProp := range pageProp.videos {
+		for _, timeRangeProp := range videoProp.timeRangeList {
 			log.Printf("===========")
-			log.Printf("channelId = %v, videoId = %v, start = %vs, end = %vs", channel.ChannelId, videoId,  tComments.start, tComments.end)
-			for textOriginal,_ := range tComments.textOriginals {
-				log.Printf("---")
-				log.Printf("%v", textOriginal)
+			log.Printf("channelId = %v, videoId = %v, start = %vs, end = %vs", channel.ChannelId, videoId, timeRangeProp.start, timeRangeProp.end)
+			authors := ""
+			for commentProp, _ := range timeRangeProp.comments {
+				if authors == "" {
+					authors = commentProp.author
+				} else {
+					authors += ", " + commentProp.author
+				}
 			}
+			log.Printf("authors = %v", authors)
 		}
 	}
 
@@ -253,15 +320,12 @@ log.Printf("%v", lastChannelPage)
 	return nil
 }
 
-func NewBuilder(buildDirPath string, maxTimeRange int64, adjustStartTime int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator) (*Builder, error)  {
+func NewBuilder(buildDirPath string, maxDuration int64, adjustStartTimeSpan int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator) (*Builder, error)  {
         if buildDirPath == "" {
                 return nil, errors.New("no build directory path")
         }
-	if maxTimeRange == 0 {
+	if maxDuration == 0 {
                 return nil, errors.New("no max time range")
-	}
-	if adjustStartTime == 0 {
-                return nil, errors.New("no adjust start time")
 	}
         _, err := os.Stat(buildDirPath)
         if err != nil {
@@ -284,8 +348,8 @@ func NewBuilder(buildDirPath string, maxTimeRange int64, adjustStartTime int64, 
 		databaseOperator: databaseOperator,
 		timeRangeRegexp: timeRangeRegexp,
 		startEndSepRegexp: startEndSepRegexp,
-		maxTimeRange: maxTimeRange,
-		adjustStartTime: adjustStartTime,
+		maxDuration: maxDuration,
+		adjustStartTimeSpan: adjustStartTimeSpan,
 	}, nil
 }
 
