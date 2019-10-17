@@ -12,8 +12,8 @@ import (
         "github.com/munoudesu/clipper/database"
 )
 
-const timeRangeRegexpExpr = "[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?(([ 　]*[~-～－―][ 　]*[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?)|([ 　]*@[ 　]*([0-9]+[hH])?([0-9]+[mM])?([0-9]+[sS])?))?"
-const startEndSepRegexExpr = "[~-～－―]"
+const timeRangeRegexpExpr = "[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?(([ 　]*[~-→～－―][ 　]*[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?)|([ 　]*@[ 　]*([0-9]+[hH])?([0-9]+[mM])?([0-9]+[sS])?))?"
+const startEndSepRegexExpr = "[~-→～－―]"
 
 type timeRange struct {
 	start         int64
@@ -56,40 +56,40 @@ func (b *Builder)timeStringToSeconds(timeString string) (int64) {
 	switch len(elems) {
 	case 2:
 		minString := elems[0]
-		min, err := strconv.ParseInt(minString, 10, 64)
+		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse min string (minString = %v)", minString)
+			log.Printf("can not parse min string (minString = %v, timeString = %v)", minString, timeString)
 			return 0
 		}
 		secString := elems[1]
-		sec, err := strconv.ParseInt(secString, 10, 64)
+		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse sec string (secString = %v)", secString)
+			log.Printf("can not parse sec string (secString = %v, timeString = %v)", secString, timeString)
 			return 0
 		}
 		return sec + (min * 60)
 	case 3:
 		hourString := elems[0]
-		hour, err := strconv.ParseInt(hourString, 10, 64)
+		hour, err := strconv.ParseInt(strings.TrimSpace(hourString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse hour string (hourString = %v)", hourString)
+			log.Printf("can not parse hour string (hourString = %v, timeString = %v)", hourString, timeString)
 			return 0
 		}
 		minString := elems[1]
-		min, err := strconv.ParseInt(minString, 10, 64)
+		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse min string (minString = %v)", minString)
+			log.Printf("can not parse min string (minString = %v, timeString = %v)", minString, timeString)
 			return 0
 		}
 		secString := elems[2]
-		sec, err := strconv.ParseInt(secString, 10, 64)
+		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse sec string (secString = %v)", secString)
+			log.Printf("can not parse sec string (secString = %v, timeString = %v)", secString, timeString)
 			return 0
 		}
 		return sec + (min * 60) + (hour * 3600)
 	default:
-		log.Printf("can not parse tims string (timeString = %v)", timeString)
+		log.Printf("can not parse tims string (timeString = %v, timeString = %v)", timeString)
 		return 0
 	}
 }
@@ -100,9 +100,9 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 	elems := strings.SplitN(durationString, "h", 2)
 	if len(elems) == 2 {
 		hourString := elems[0]
-		hour, err := strconv.ParseInt(hourString, 10, 64)
+		hour, err := strconv.ParseInt(strings.TrimSpace(hourString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse hour string (hourString = %v)", hourString)
+			log.Printf("can not parse hour string (hourString = %v, durationString = %v)", hourString, durationString)
 			return 0
 		}
 		seconds += hour * 3600
@@ -111,9 +111,9 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 	elems = strings.SplitN(durationString, "m", 2)
 	if len(elems) == 2 {
 		minString := elems[0]
-		min, err := strconv.ParseInt(minString, 10, 64)
+		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse min string (minString = %v)", minString)
+			log.Printf("can not parse min string (minString = %v, durationString = %v)", minString, durationString)
 			return 0
 		}
 		seconds += min * 60
@@ -122,9 +122,9 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 	elems = strings.SplitN(durationString, "s", 2)
 	if len(elems) == 2 {
 		secString := elems[0]
-		sec, err := strconv.ParseInt(secString, 10, 64)
+		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse sec string (minString = %v)", secString)
+			log.Printf("can not parse sec string (minString = %v, durationString = %v)", secString, durationString)
 			return 0
 		}
 		seconds += sec
