@@ -1,24 +1,24 @@
 <html>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <title>clipper</title>
 <meta charset="utf-8">
-<meta name="description" content="clipper">
-<meta name="author" content="munoudesu">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="clipper" />
+<meta name="author" content="munoudesu" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:site" content="@clipper" />
-<meta name="twitter:title" content="Small Island Developing States Photo Submission" />
-<meta name="twitter:description" content="play movie clip of youtube." />
-<meta name="twitter:image" content="{{.channel.imageurl}}" />
-<meta name="twitter:alt" content="{{.channel.name}}">
-<link rel="stylesheet" href="css/clipper.css">
-<link rel="shortcut icon" href="icon/favicon.ico">
+<meta name="twitter:title" content="clipper" />
+<meta name="twitter:description" content="This page play movie clip of {{ .Name }} channel of youtube." />
+<meta name="twitter:image" content="{{ .ThumbnailMediumUrl }}" />
+<link rel="stylesheet" type="text/css" href="css/clipper.css" />
+<link rel="shortcut icon" href="icon/favicon.ico" />
 </head>
 <body>
-
-
-
-
+<div id="app"></div>
+<div id="player"></div>
+<script type="text/javascript" src="./js/vue.min.js" charset="utf-8"></script>
+<script type="text/javascript" src="./js/{{ .ChannelId }}.js" charset="utf-8"></script>
+<script type="text/javascript" src="./js/clipper.js" charset="utf-8"></script>
 </body>
 </html>

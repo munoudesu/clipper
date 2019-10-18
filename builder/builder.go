@@ -43,16 +43,18 @@ type pageProperty struct {
 }
 
 type Builder struct {
-	buildDirPath        string
-	buildClipperDirPath string
-	templateDirPath     string
-	channels            youtubedataapi.Channels
-	databaseOperator    *database.DatabaseOperator
-	timeRangeRegexp     *regexp.Regexp
-	startEndSepRegexp   *regexp.Regexp
-	maxDuration         int64
-	adjustStartTimeSpan int64
-	templates           *template.Template
+	sourceDirPath         string
+	resourceDirPath       string
+	templateDirPath       string
+	buildDirPath          string
+	buildJsDirPath        string
+	channels              youtubedataapi.Channels
+	databaseOperator      *database.DatabaseOperator
+	timeRangeRegexp       *regexp.Regexp
+	startEndSepRegexp     *regexp.Regexp
+	maxDuration           int64
+	adjustStartTimeSpan   int64
+	templates             *template.Template
 }
 
 func (b *Builder)timeStringToSeconds(timeString string) (int64) {
@@ -304,19 +306,44 @@ func (b *Builder)buildPage(channel *youtubedataapi.Channel) (string, error) {
 }
 
 func (b *Builder)Build() (error) {
+	dbChannels := make([]*database.Channel, 0)
+	for _, channel := range b.channels {
+		dbChannel, ok, err := b.databaseOperator.GetChannelByChannelId(channel.ChannelId)
+		if err != nil {
+			return errors.Wrapf(err, "can not get chennal by channelId from database (channelId = %v)", channel.ChannelId)
+		}
+		if !ok {
+			continue
+		}
+		dbChannels = append(dbChannels, dbChannel)
+	}
 	// create index.html
-	indexHtml := filepath.Join(b.buildClipperDirPath, "index.html")
+	indexHtml := filepath.Join(b.buildDirPath, "index.html")
 	indexHtmlFile, err := os.OpenFile(indexHtml, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtml)
 	}
 	defer indexHtmlFile.Close()
-	err = b.templates.ExecuteTemplate(indexHtmlFile, "index.tmpl", b.channels)
+	err = b.templates.ExecuteTemplate(indexHtmlFile, "index.tmpl", dbChannels)
 	if err != nil {
 		return errors.Wrapf(err, "can not write to index html file (path = %v)", indexHtml)
 	}
+	// create channel page
+	for _, dbChannel := range dbChannels {
+		pageHtml := filepath.Join(b.buildDirPath, dbChannel.ChannelId + ".html")
+		pageHtmlFile, err := os.OpenFile(pageHtml, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return errors.Wrapf(err, "can not open page html file (path = %v)", pageHtml)
+		}
+		defer pageHtmlFile.Close()
+		err = b.templates.ExecuteTemplate(pageHtmlFile, "page.tmpl", dbChannel)
+		if err != nil {
+			return errors.Wrapf(err, "can not write to page html file (path = %v)", pageHtml)
+		}
+	}
 
 
+/*
 
 	for _, channel := range b.channels {
 		lastChannelPage, ok, err := b.databaseOperator.GetChannelPageByChannelId(channel.ChannelId)
@@ -336,19 +363,19 @@ log.Printf("%v", lastChannelPage)
                         return  errors.Wrapf(err, "can not update page hash and dirty of channelPage (channelId = %v, newPageHash = %v)", channel.ChannelId, newPageHash)
                 }
 	}
+*/
 	return nil
 }
 
-func NewBuilder(buildDirPath string, templateDirPath string, maxDuration int64, adjustStartTimeSpan int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator) (*Builder, error)  {
+func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, adjustStartTimeSpan int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator) (*Builder, error)  {
         if buildDirPath == "" {
                 return nil, errors.New("no build directory path")
-        }
-        if templateDirPath == "" {
-                return nil, errors.New("no template directory path")
         }
 	if maxDuration == 0 {
                 return nil, errors.New("no max time range")
 	}
+        resourceDirPath := filepath.Join(sourceDirPath, "resource")
+        templateDirPath := filepath.Join(sourceDirPath, "template")
         _, err := os.Stat(buildDirPath)
         if err != nil {
                 err := os.MkdirAll(buildDirPath, 0755)
@@ -369,18 +396,20 @@ func NewBuilder(buildDirPath string, templateDirPath string, maxDuration int64, 
 	if err != nil {
 		return nil, errors.Errorf("can not parse templates (template pattern = %v)", templatePattern)
 	}
-        buildClipperDirPath := filepath.Join(buildDirPath, "clipper")
-         _, err = os.Stat(buildClipperDirPath)
+        buildJsDirPath := filepath.Join(buildDirPath, "js")
+         _, err = os.Stat(buildJsDirPath)
 	if err != nil {
-                err := os.MkdirAll(buildClipperDirPath, 0755)
+                err := os.MkdirAll(buildJsDirPath, 0755)
                 if err != nil {
-                        return nil, errors.Errorf("can not create directory (%v)", buildClipperDirPath)
+                        return nil, errors.Errorf("can not create directory (%v)", buildJsDirPath)
                 }
         }
 	return &Builder {
-		buildDirPath: buildDirPath,
-		buildClipperDirPath: buildClipperDirPath,
+		sourceDirPath: sourceDirPath,
+		resourceDirPath: resourceDirPath,
 		templateDirPath: templateDirPath,
+		buildDirPath: buildDirPath,
+		buildJsDirPath: buildJsDirPath,
 		channels: channels,
 		databaseOperator: databaseOperator,
 		timeRangeRegexp: timeRangeRegexp,

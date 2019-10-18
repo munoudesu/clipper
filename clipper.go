@@ -26,22 +26,22 @@ type clipperDatabaseConfig struct {
 }
 
 type clipperBuilderConfig struct {
-	BuildDirPath          string `toml:"buildDirPath"`
-	TemplateDirPath       string `toml:"templateDirPath"`
-	MaxDuration           int64  `toml:"maxDuration"`
-	AdjustStartTimeSpan   int64  `toml:"adjustStartTimeSpan"`
+	SourceDirPath       string `toml:"sourceDirPath"`
+	BuildDirPath        string `toml:"buildDirPath"`
+	MaxDuration         int64  `toml:"maxDuration"`
+	AdjustStartTimeSpan int64  `toml:"adjustStartTimeSpan"`
 }
 
-type clipperIpfsConfig struct {
-	AddrPort string `toml:"addrPort"`
-}
+//type clipperIpfsConfig struct {
+//	AddrPort string `toml:"addrPort"`
+//}
 
 type clipperConfig struct {
 	Youtube  *clipperYoutubeConfig  `toml:"youtube"`
 	Twitter  *clipperTwitterConfig  `toml:"twitter"`
 	Database *clipperDatabaseConfig `toml:"database"`
 	Builder  *clipperBuilderConfig  `toml:"builder"`
-	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
+//	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
 }
 
 func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
@@ -100,7 +100,6 @@ func main() {
 		log.Printf("can not load api key pair of twitter: %v", err)
 		return
 	}
-	log.Printf("api key = %v api secret key = %v", twitterApiKeyPair.ApiKey, twitterApiKeyPair.ApiSecretKey)
 	databaseOperator, err := database.NewDatabaseOperator(conf.Database.DatabasePath)
 	if err != nil {
 		 log.Printf("can not create database operator: %v", err)
@@ -125,7 +124,7 @@ func main() {
 		}
 	}
 	if !skipBuild {
-		builder, err := builder.NewBuilder(conf.Builder.BuildDirPath, conf.Builder.TemplateDirPath, conf.Builder.MaxDuration, conf.Builder.AdjustStartTimeSpan, conf.Youtube.Channels, databaseOperator)
+		builder, err := builder.NewBuilder(conf.Builder.SourceDirPath, conf.Builder.BuildDirPath, conf.Builder.MaxDuration, conf.Builder.AdjustStartTimeSpan, conf.Youtube.Channels, databaseOperator)
 		if err != nil {
 			log.Printf("can not create builder: %v", err)
 			return
@@ -136,4 +135,5 @@ func main() {
 			return
 		}
 	}
+	log.Printf("%v",twitterApiKeyPair)
 }
