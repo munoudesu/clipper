@@ -59,24 +59,28 @@ func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
 func main() {
 	var configFile string
 	var verbose bool
+	var searchChannel bool
 	var searchVideo bool
 	var searchComment bool
-	var recentVideo bool
+	var checkAllVideo bool
+	var checkChannelModified bool
 	var checkVideoModified bool
 	var checkCommentModified bool
 	var skipSearch bool
 	var skipBuild bool
-	var skipPublish bool
+	var skipNotify bool
 	flag.StringVar(&configFile, "config", "clipper.conf", "config file")
 	flag.BoolVar(&verbose, "verbose", false, "verbose")
+	flag.BoolVar(&searchChannel, "searchChannel", true, "search channel")
 	flag.BoolVar(&searchVideo, "searchVideo", true, "search video")
 	flag.BoolVar(&searchComment, "searchComment", true, "search comment")
-	flag.BoolVar(&recentVideo, "recentVideo", true, "recent video")
+	flag.BoolVar(&checkAllVideo, "checkAllVideo", true, "check all video")
+	flag.BoolVar(&checkChannelModified, "checkChannelModified", false, "check channel modified")
 	flag.BoolVar(&checkVideoModified, "checkVideoModified", false, "check video modified")
 	flag.BoolVar(&checkCommentModified, "checkCommentModified", false, "check comment modified")
 	flag.BoolVar(&skipSearch, "skipSearch", false, "skip search")
 	flag.BoolVar(&skipBuild, "skipBuild", false, "skip build")
-	flag.BoolVar(&skipPublish, "skipPublish", false, "skip Publish")
+	flag.BoolVar(&skipPublish, "skipNotify", false, "skip Notify")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(configFile)
 	conf := new(clipperConfig)
@@ -114,7 +118,7 @@ func main() {
 			log.Printf("can not create searcher of youtube: %v", err)
 			return
 		}
-		err = youtubeSearcher.Search(searchVideo, searchComment, recentVideo, checkVideoModified, checkCommentModified)
+		err = youtubeSearcher.Search(searchChannel, searchVideo, searchComment, checkChannelModified, checkVideoModified, checkCommentModified, checkAllVideo)
 		if err != nil {
 			log.Printf("can not search youtube: %v", err)
 			return
