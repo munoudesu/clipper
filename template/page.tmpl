@@ -13,19 +13,18 @@
 <meta name="twitter:image" content="{{ .ThumbnailMediumUrl }}" />
 <link rel="stylesheet" type="text/css" href="css/clipper.css" />
 <link rel="shortcut icon" href="icon/favicon.ico" />
+<script type="text/javascript" src="js/axios.min.js" charset="utf-8"></script>
 </head>
 <body>
-<div id="app">
-<div> defaultDuration <input type="text" v-model="defaultDuration" /></div>
-<div id="recommender" v-html="recommender"></div>
-<div id="videpTitle" v-html="videoTitle"></div>
-<div id="player"><iframe width="480" height="270" v-bind:src="clipUrl" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
-<div id="youtubePagelink"><a v-bind:href="clipUrl" target="_clipper">youtube page link</a></div>
-</div>
-<div>
-<script type="text/javascript" src="./js/vue.min.js" charset="utf-8"></script>
-<script type="application/json" src="./json/{{ .ChannelId }}.json" charset="utf-8"></script>
-<script type="text/javascript" src="./js/clipper.js" charset="utf-8"></script>
+    <div id="app">
+        <div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
+        <div>default duration <input type="text" v-model="defaultDuration" type="number" placeholder="default duration" /></div>
+        <div> {{ `{{ clipRecommenders }}` }} </div>
+        <div> {{ `{{ clipVideoTitle }}` }} </div>
+        <div id="player"><iframe width="480" height="270" v-bind:src="clipUrl" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+        <div id="youtubePagelink"><a v-bind:href="clipUrl" target="_clipper" v-html="clipUrl"></a></div>
+    </div>
+    <script type="text/javascript" src="js/vue.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/clipper.js" charset="utf-8"></script>
 </body>
 </html>
-

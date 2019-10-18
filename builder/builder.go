@@ -40,7 +40,8 @@ type timeRangeProperty struct {
 }
 
 type videoProperty struct {
-	timeRangeList           []*timeRangeProperty
+	// XXXXX comment updatedAt 最新のもの TODO
+	timeRangeList []*timeRangeProperty
 }
 
 type channelProperty struct {
@@ -290,38 +291,31 @@ type Clip struct {
 	VideoId string
 	Start   int64
 	End     int64
-	Recommenders string
+	Recommenders []string
 }
 
-type PageProp struct {
-	Clips []*Clip
-}
-
-func (b *Builder)buildPageProp(channel *database.Channel) (*PageProp, error) {
+func (b *Builder)buildPageProp(channel *database.Channel) ([]*Clip, error) {
 	clipProp, err := b.makeChannelProperty(channel)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not make clip property (channelId = %v)", channel.ChannelId)
 	}
-	pageProp := &PageProp{
-		Clips: make([]*Clip, 0),
-	}
+	pageProp := make([]*Clip, 0)
 	for videoId, videoProp := range clipProp.videos {
 		for _, timeRangeProp := range videoProp.timeRangeList {
-			recommenders := ""
+			authors := make([]string, 0, len(timeRangeProp.comments))
 			for commentProp, _ := range timeRangeProp.comments {
-				if recommenders == "" {
-					recommenders = commentProp.author
-				} else {
-					recommenders += ", " + commentProp.author
-				}
+				authors = append(authors, commentProp.author)
 			}
+			sort.Slice(authors, func(i, j int) bool {
+				return authors[i] < authors[j]
+			})
 			clip := &Clip {
 				VideoId: videoId,
 				Start: timeRangeProp.start,
 				End: timeRangeProp.end,
-				Recommenders: recommenders,
+				Recommenders: authors,
 			}
-			pageProp.Clips = append(pageProp.Clips, clip)
+			pageProp = append(pageProp, clip)
 		}
 	}
 	return pageProp, nil
@@ -377,7 +371,6 @@ func (b *Builder)Build() (error) {
 		if err != nil {
 			return errors.Wrapf(err, "can not marshal json (channelId = %v)", dbChannel.ChannelId)
 		}
-log.Printf("%v", string(jsonBytes))
 		newPageHash := fmt.Sprintf("%x", sha1.Sum(jsonBytes))
 		if ok && lastChannelPage.PageHash == newPageHash {
 			log.Printf("skip because same page hash (oldPageHash = %v, newPageHash = %v", lastChannelPage.PageHash, newPageHash)
