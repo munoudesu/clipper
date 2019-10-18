@@ -1,15 +1,20 @@
 package builder
 
 import (
+        "fmt"
         "os"
         "log"
         "sort"
         "regexp"
         "strings"
         "strconv"
+        "encoding/json"
         "html/template"
         "path/filepath"
+        "crypto/sha1"
+        "io/ioutil"
         "github.com/pkg/errors"
+	copytool "github.com/otiai10/copy"
         "github.com/munoudesu/clipper/youtubedataapi"
         "github.com/munoudesu/clipper/database"
 )
@@ -38,7 +43,7 @@ type videoProperty struct {
 	timeRangeList           []*timeRangeProperty
 }
 
-type pageProperty struct {
+type channelProperty struct {
 	videos map[string]*videoProperty
 }
 
@@ -48,6 +53,7 @@ type Builder struct {
 	templateDirPath       string
 	buildDirPath          string
 	buildJsDirPath        string
+	buildJsonDirPath      string
 	channels              youtubedataapi.Channels
 	databaseOperator      *database.DatabaseOperator
 	timeRangeRegexp       *regexp.Regexp
@@ -240,21 +246,21 @@ func (b *Builder)adjustTimRangeList(timeRangeList []*timeRangeProperty) ([]*time
 	return timeRangeList
 }
 
-func (b *Builder)makePageProperty(channel *youtubedataapi.Channel) (*pageProperty, error) {
+func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelProperty, error) {
 	comments, err := b.databaseOperator.GetAllCommentsByChannelIdAndLikeText(channel.ChannelId, "%:%")
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not get comments from database (channelId = %v)", channel.ChannelId)
 	}
-	pageProp := &pageProperty{
+	channelProp := &channelProperty{
 		videos: make(map[string]*videoProperty),
 	}
 	for _, comment := range comments {
-		videoProp, ok := pageProp.videos[comment.VideoId]
+		videoProp, ok := channelProp.videos[comment.VideoId]
 		if !ok {
 			videoProp = &videoProperty{
 				timeRangeList: make([]*timeRangeProperty, 0),
 			}
-			pageProp.videos[comment.VideoId] = videoProp
+			channelProp.videos[comment.VideoId] = videoProp
 		}
 		timeRangeList := b.parseTimeRangeList(comment.TextOriginal)
 		for _, timeRange := range timeRangeList {
@@ -277,32 +283,48 @@ func (b *Builder)makePageProperty(channel *youtubedataapi.Channel) (*pagePropert
 		})
 		videoProp.timeRangeList = b.adjustTimRangeList(videoProp.timeRangeList)
 	}
-	return pageProp, nil
+	return channelProp, nil
 }
 
-func (b *Builder)buildPage(channel *youtubedataapi.Channel) (string, error) {
-	pageProp, err := b.makePageProperty(channel)
-	if err != nil {
-		return "", errors.Wrapf(err, "can not make page property (channelId = %v)", channel.ChannelId)
-	}
+type Clip struct {
+	VideoId string
+	Start   int64
+	End     int64
+	Recommenders string
+}
 
-	for videoId, videoProp := range pageProp.videos {
+type PageProp struct {
+	Clips []*Clip
+}
+
+func (b *Builder)buildPageProp(channel *database.Channel) (*PageProp, error) {
+	clipProp, err := b.makeChannelProperty(channel)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not make clip property (channelId = %v)", channel.ChannelId)
+	}
+	pageProp := &PageProp{
+		Clips: make([]*Clip, 0),
+	}
+	for videoId, videoProp := range clipProp.videos {
 		for _, timeRangeProp := range videoProp.timeRangeList {
-			log.Printf("===========")
-			log.Printf("channelId = %v, videoId = %v, start = %vs, end = %vs", channel.ChannelId, videoId, timeRangeProp.start, timeRangeProp.end)
-			authors := ""
+			recommenders := ""
 			for commentProp, _ := range timeRangeProp.comments {
-				if authors == "" {
-					authors = commentProp.author
+				if recommenders == "" {
+					recommenders = commentProp.author
 				} else {
-					authors += ", " + commentProp.author
+					recommenders += ", " + commentProp.author
 				}
 			}
-			log.Printf("authors = %v", authors)
+			clip := &Clip {
+				VideoId: videoId,
+				Start: timeRangeProp.start,
+				End: timeRangeProp.end,
+				Recommenders: recommenders,
+			}
+			pageProp.Clips = append(pageProp.Clips, clip)
 		}
 	}
-
-	return "", nil
+	return pageProp, nil
 }
 
 func (b *Builder)Build() (error) {
@@ -318,52 +340,59 @@ func (b *Builder)Build() (error) {
 		dbChannels = append(dbChannels, dbChannel)
 	}
 	// create index.html
-	indexHtml := filepath.Join(b.buildDirPath, "index.html")
-	indexHtmlFile, err := os.OpenFile(indexHtml, os.O_WRONLY|os.O_CREATE, 0644)
+	indexHtmlPath := filepath.Join(b.buildDirPath, "index.html")
+	indexHtmlFile, err := os.OpenFile(indexHtmlPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtml)
+		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtmlPath)
 	}
 	defer indexHtmlFile.Close()
 	err = b.templates.ExecuteTemplate(indexHtmlFile, "index.tmpl", dbChannels)
 	if err != nil {
-		return errors.Wrapf(err, "can not write to index html file (path = %v)", indexHtml)
+		return errors.Wrapf(err, "can not write to index html file (path = %v)", indexHtmlPath)
 	}
 	// create channel page
 	for _, dbChannel := range dbChannels {
-		pageHtml := filepath.Join(b.buildDirPath, dbChannel.ChannelId + ".html")
-		pageHtmlFile, err := os.OpenFile(pageHtml, os.O_WRONLY|os.O_CREATE, 0644)
+		pageHtmlPath := filepath.Join(b.buildDirPath, dbChannel.ChannelId + ".html")
+		pageHtmlFile, err := os.OpenFile(pageHtmlPath, os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
-			return errors.Wrapf(err, "can not open page html file (path = %v)", pageHtml)
+			return errors.Wrapf(err, "can not open page html file (path = %v)", pageHtmlPath)
 		}
 		defer pageHtmlFile.Close()
 		err = b.templates.ExecuteTemplate(pageHtmlFile, "page.tmpl", dbChannel)
 		if err != nil {
-			return errors.Wrapf(err, "can not write to page html file (path = %v)", pageHtml)
+			return errors.Wrapf(err, "can not write to page html file (path = %v)", pageHtmlPath)
 		}
 	}
-
-
-/*
-
-	for _, channel := range b.channels {
-		lastChannelPage, ok, err := b.databaseOperator.GetChannelPageByChannelId(channel.ChannelId)
+	// create page prop
+	for _, dbChannel := range dbChannels {
+		lastChannelPage, ok, err := b.databaseOperator.GetChannelPageByChannelId(dbChannel.ChannelId)
                 if err != nil {
-                        return  errors.Wrapf(err, "can not get channel page from database (channelId = %v)", channel.ChannelId)
+                        return  errors.Wrapf(err, "can not get channel page from database (channelId = %v)", dbChannel.ChannelId)
                 }
-log.Printf("%v", lastChannelPage)
-		newPageHash, err := b.buildPage(channel)
+		pageProp, err := b.buildPageProp(dbChannel)
 		if err != nil {
-			return errors.Wrapf(err, "can not get build page (channelId = %v)", channel.ChannelId)
+			return errors.Wrapf(err, "can not get build page (channelId = %v)", dbChannel.ChannelId)
 		}
+		jsonBytes, err := json.Marshal(pageProp)
+		if err != nil {
+			return errors.Wrapf(err, "can not marshal json (channelId = %v)", dbChannel.ChannelId)
+		}
+log.Printf("%v", string(jsonBytes))
+		newPageHash := fmt.Sprintf("%x", sha1.Sum(jsonBytes))
 		if ok && lastChannelPage.PageHash == newPageHash {
+			log.Printf("skip because same page hash (oldPageHash = %v, newPageHash = %v", lastChannelPage.PageHash, newPageHash)
 			continue
 		}
-		err = b.databaseOperator.UpdatePageHashAndDirtyOfChannelPage(channel.ChannelId, newPageHash, 1)
+		jsonPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json")
+		err = ioutil.WriteFile(jsonPath, jsonBytes, 0644)
+		if err != nil {
+			return errors.Wrapf(err, "can not write json to file (channelId = %v, path = %v)", dbChannel.ChannelId, jsonPath)
+		}
+		err = b.databaseOperator.UpdatePageHashAndDirtyOfChannelPage(dbChannel.ChannelId, newPageHash, 1)
                 if err != nil {
-                        return  errors.Wrapf(err, "can not update page hash and dirty of channelPage (channelId = %v, newPageHash = %v)", channel.ChannelId, newPageHash)
+                        return  errors.Wrapf(err, "can not update page hash and dirty of channelPage (channelId = %v, newPageHash = %v)", dbChannel.ChannelId, newPageHash)
                 }
 	}
-*/
 	return nil
 }
 
@@ -380,36 +409,49 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
         if err != nil {
                 err := os.MkdirAll(buildDirPath, 0755)
                 if err != nil {
-                        return nil, errors.Errorf("can not create directory (%v)", buildDirPath)
+                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildDirPath)
                 }
         }
         timeRangeRegexp, err := regexp.Compile(timeRangeRegexpExpr)
 	if err != nil {
-		return nil, errors.Errorf("can not compile timeRangeRegexpExpr (%v)", timeRangeRegexpExpr)
+		return nil, errors.Wrapf(err, "can not compile timeRangeRegexpExpr (%v)", timeRangeRegexpExpr)
 	}
 	startEndSepRegexp, err := regexp.Compile(startEndSepRegexExpr)
 	if err != nil {
-		return nil, errors.Errorf("can not compile startEndSepRegexExpr (%v)", startEndSepRegexExpr)
+		return nil, errors.Wrapf(err, "can not compile startEndSepRegexExpr (%v)", startEndSepRegexExpr)
 	}
 	templatePattern := filepath.Join(templateDirPath, "*.tmpl")
 	templates, err := template.ParseGlob(templatePattern)
 	if err != nil {
-		return nil, errors.Errorf("can not parse templates (template pattern = %v)", templatePattern)
+		return nil, errors.Wrapf(err, "can not parse templates (template pattern = %v)", templatePattern)
 	}
         buildJsDirPath := filepath.Join(buildDirPath, "js")
          _, err = os.Stat(buildJsDirPath)
 	if err != nil {
                 err := os.MkdirAll(buildJsDirPath, 0755)
                 if err != nil {
-                        return nil, errors.Errorf("can not create directory (%v)", buildJsDirPath)
+                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildJsDirPath)
                 }
         }
+        buildJsonDirPath := filepath.Join(buildDirPath, "json")
+         _, err = os.Stat(buildJsonDirPath)
+	if err != nil {
+                err := os.MkdirAll(buildJsonDirPath, 0755)
+                if err != nil {
+                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildJsonDirPath)
+                }
+        }
+	err = copytool.Copy(resourceDirPath, buildDirPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not copy resource to build (%v -> %v)", resourceDirPath, buildDirPath)
+	}
 	return &Builder {
 		sourceDirPath: sourceDirPath,
 		resourceDirPath: resourceDirPath,
 		templateDirPath: templateDirPath,
 		buildDirPath: buildDirPath,
 		buildJsDirPath: buildJsDirPath,
+		buildJsonDirPath: buildJsonDirPath,
 		channels: channels,
 		databaseOperator: databaseOperator,
 		timeRangeRegexp: timeRangeRegexp,
