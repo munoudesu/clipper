@@ -7,17 +7,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-func LoadApiKey(apiKeyFile string) (string, error) {
+func LoadApiKey(apiKeyFile string) ([]string, error) {
 	fileInfo, err := os.Stat(apiKeyFile)
 	if err != nil {
-		return "", errors.Wrapf(err, "not exists youtube data api key file (%v)", apiKeyFile)
+		return nil, errors.Wrapf(err, "not exists youtube data api key file (%v)", apiKeyFile)
 	}
 	if fileInfo.Mode().Perm() != 0600 {
-		return "", errors.Errorf("youtube data api key file have insecure permission (e.g. !=  0600) (%v)", apiKeyFile)
+		return nil, errors.Errorf("youtube data api key file have insecure permission (e.g. !=  0600) (%v)", apiKeyFile)
 	}
-	apiKey, err := ioutil.ReadFile(apiKeyFile)
+	apiKeysBytes, err := ioutil.ReadFile(apiKeyFile)
 	if err != nil {
-		return "", errors.Wrapf(err, "can not read youtube data api key file (%v)", apiKeyFile)
+		return nil, errors.Wrapf(err, "can not read youtube data api key file (%v)", apiKeyFile)
 	}
-	return strings.TrimSpace(string(apiKey)), nil
+	apiKeysStrings := strings.Split(string(apiKeysBytes), "\n")
+	apiKeys := make([]string, 0, len(apiKeysStrings))
+	for _, s := range apiKeysStrings {
+		apiKeys = append(apiKeys, strings.TrimSpace(s))
+	}
+	return apiKeys, nil
 }

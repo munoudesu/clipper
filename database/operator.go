@@ -55,7 +55,9 @@ type Video struct {
 	EmbedHeight            int64
 	EmbedWidth             int64
 	EmbedHtml              string
-	ResponseEtag            string
+        StatusUploadStatus     string
+        StatusEmbeddable       bool
+	ResponseEtag           string
 }
 
 type CommentThread struct {
@@ -66,7 +68,7 @@ type CommentThread struct {
 	VideoId         string
 	TopLevelComment *TopLevelComment
 	ReplyComments   []*ReplyComment
-	ResponseEtag     string
+	ResponseEtag    string
 }
 
 type TopLevelComment struct {
@@ -218,7 +220,7 @@ func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (er
                 name,
                 channelId,
                 videoId,
-		reponseEtag
+		responseEtag
             ) VALUES (
                 ?, ?, ?, ?, ?, ?
             )`,
@@ -439,11 +441,13 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
                 embedHeight,
                 embedWidth,
                 embedHtml,
+                statusUploadStatus,
+                statusEmbeddable,
 		responseEtag
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-		?
+		?, ?, ?
             )`,
 	    video.VideoId,
 	    video.Etag,
@@ -465,6 +469,8 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
 	    video.EmbedHeight,
 	    video.EmbedWidth,
 	    video.EmbedHtml,
+	    video.StatusUploadStatus,
+            video.StatusEmbeddable,
 	    video.ResponseEtag,
         )
         if err != nil {
@@ -511,6 +517,8 @@ func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, err
 		    &video.EmbedHeight,
 		    &video.EmbedWidth,
 		    &video.EmbedHtml,
+                    &video.StatusUploadStatus,
+                    &video.StatusEmbeddable,
 		    &video.ResponseEtag,
                 )
                 if err != nil {
@@ -551,6 +559,9 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*Video, bool, erro
 		    &video.EmbedHeight,
 		    &video.EmbedWidth,
 		    &video.EmbedHtml,
+                    &video.StatusUploadStatus,
+                    &video.StatusEmbeddable,
+		    &video.ResponseEtag,
                 )
                 if err != nil {
                         return nil, false, errors.Wrap(err, "can not scan video by videoId from database")
@@ -764,6 +775,8 @@ func (d *DatabaseOperator) createTables() (error) {
 		embedHeight            INTEGER NOT NULL,
 		embedWidth             INTEGER NOT NULL,
 		embedHtml              TEXT NOT NULL,
+                statusUploadStatus     TEXT NOT NULL,
+                statusEmbeddable       INTEGER NOT NULL,
 		responseEtag           TEXT NOT NULL
 	)`
 	_, err = d.db.Exec(videoTableCreateQuery);

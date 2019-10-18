@@ -19,15 +19,26 @@ type Channel struct {
 type Channels []*Channel
 
 type Searcher struct {
-	apiKey           string
-	channels         Channels
-	ctx              context.Context
-	youtubeService   *youtube.Service
-	databaseOperator *database.DatabaseOperator
+	apiKeys            []string
+	maxVideos          int64
+	channels           Channels
+	ctxs               []context.Context
+	youtubeServices    []*youtube.Service
+	youtubeServicesIdx int
+	databaseOperator   *database.DatabaseOperator
+}
+
+func (s *Searcher)getYoutubeService() (*youtube.Service) {
+	youtubeService := s.youtubeServices[s.youtubeServicesIdx]
+	s.youtubeServicesIdx += 1
+	if s.youtubeServicesIdx >= len(s.youtubeServices) {
+		s.youtubeServicesIdx = 0
+	}
+	return youtubeService
 }
 
 func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, commentThreadId string, etag string) (*database.CommentThread, bool, bool, error) {
-        commentThreadsService := youtube.NewCommentThreadsService(s.youtubeService)
+        commentThreadsService := youtube.NewCommentThreadsService(s.getYoutubeService())
 	commentThreadsListCall := commentThreadsService.List("id,replies,snippet")
 	commentThreadsListCall.MaxResults(2)
 	commentThreadsListCall.Id(commentThreadId)
@@ -99,7 +110,7 @@ func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, comme
 
 
 func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModified  bool) (error) {
-        commentThreadsService := youtube.NewCommentThreadsService(s.youtubeService)
+        commentThreadsService := youtube.NewCommentThreadsService(s.getYoutubeService())
         pageToken := ""
         for {
                 commentThreadsListCall := commentThreadsService.List("id")
@@ -170,8 +181,8 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 }
 
 func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, bool, error) {
-	videoService :=	youtube.NewVideosService(s.youtubeService)
-	videosListCall := videoService.List("id,snippet,player")
+	videoService :=	youtube.NewVideosService(s.getYoutubeService())
+	videosListCall := videoService.List("id,snippet,player,status")
 	videosListCall.Id(videoId)
 	videosListCall.MaxResults(2)
 	videosListCall.PageToken("")
@@ -210,20 +221,25 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 		EmbedWidth: item.Player.EmbedWidth,
 		EmbedHeight: item.Player.EmbedHeight,
 		EmbedHtml: item.Player.EmbedHtml,
+		StatusUploadStatus: item.Status.UploadStatus,
+		StatusEmbeddable : item.Status.Embeddable,
 		ResponseEtag: videoListResponse.Etag,
 	}
 	return video, false, false, nil
 }
 
-func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool, checkAllVideo bool) (error) {
-	log.Printf("search video of channel %v", channel.ChannelId)
-        searchService := youtube.NewSearchService(s.youtubeService)
+func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (error) {
+        searchService := youtube.NewSearchService(s.getYoutubeService())
         pageToken := ""
-        for {
+        for loop := s.maxVideos; loop > 0; loop -= 50{
+		maxResults := loop
+		if maxResults > 50 {
+			maxResults = 50
+		}
                 searchListCall := searchService.List("id")
                 searchListCall.ChannelId(channel.ChannelId)
                 searchListCall.EventType("completed")
-                searchListCall.MaxResults(50)
+                searchListCall.MaxResults(maxResults)
                 searchListCall.Order("date")
                 searchListCall.PageToken(pageToken)
                 searchListCall.SafeSearch("none")
@@ -287,7 +303,7 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool, ch
 				}
 			}
                 }
-                if checkAllVideo && searchListResponse.NextPageToken != "" {
+                if searchListResponse.NextPageToken != "" {
                         pageToken = searchListResponse.NextPageToken
 			continue
                 }
@@ -297,7 +313,7 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool, ch
 }
 
 func (s *Searcher)getChannelByChannelId(name string, channelId string, etag string) (*database.Channel, bool, bool, error) {
-	channelService := youtube.NewChannelsService(s.youtubeService)
+	channelService := youtube.NewChannelsService(s.getYoutubeService())
 	channelListCall := channelService.List("id,snippet")
 	channelListCall.Id(channelId)
 	channelListCall.MaxResults(2)
@@ -387,7 +403,7 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 	return nil
 }
 
-func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment bool, checkChannelModified bool, checkVideoModified bool, checkCommentModified bool, checkAllVideo bool) (error) {
+func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment bool, checkChannelModified bool, checkVideoModified bool, checkCommentModified bool) (error) {
 	for _, channel := range s.channels {
 		if searchChannel {
 			err := s.searchChannelByChannelId(channel.Name, channel.ChannelId, checkChannelModified)
@@ -396,7 +412,7 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 			}
 		}
 		if searchVideo {
-			err := s.searchVideosByChannel(channel, checkVideoModified, checkAllVideo)
+			err := s.searchVideosByChannel(channel, checkVideoModified)
 			if err != nil {
 				return errors.Wrapf(err, "can not search videos by channel (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
 			}
@@ -417,16 +433,25 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 	return nil
 }
 
-func NewSearcher(apiKey string, channels []*Channel, databaseOperator *database.DatabaseOperator) (*Searcher, error) {
-        ctx := context.Background()
-        youtubeService, err := youtube.NewService(ctx, option.WithAPIKey(apiKey))
-        if err != nil {
-		return nil, errors.Wrapf(err, "can not create youtube service")
+func NewSearcher(apiKeys []string, maxVideos int64, channels []*Channel, databaseOperator *database.DatabaseOperator) (*Searcher, error) {
+	ctxs := make([]context.Context, 0, len(apiKeys))
+	youtubeServices := make([]*youtube.Service, 0, len(apiKeys))
+	for _, apiKey := range apiKeys {
+		ctx := context.Background()
+		youtubeService, err := youtube.NewService(ctx, option.WithAPIKey(apiKey))
+		if err != nil {
+			return nil, errors.Wrapf(err, "can not create youtube service")
+		}
+		ctxs = append(ctxs, ctx)
+		youtubeServices = append(youtubeServices, youtubeService)
 	}
 	return &Searcher{
+		apiKeys: apiKeys,
+		maxVideos: maxVideos,
 		channels: channels,
-		ctx: ctx,
-		youtubeService: youtubeService,
+		ctxs: ctxs,
+		youtubeServices: youtubeServices,
+		youtubeServicesIdx: 0,
 		databaseOperator: databaseOperator,
 	}, nil
 }

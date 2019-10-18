@@ -12,8 +12,9 @@ import (
 )
 
 type clipperYoutubeConfig struct {
-	ApiKeyFile string                `toml:"apiKeyFile"`
-	Channels youtubedataapi.Channels `toml:"channels"`
+	ApiKeyFile string                  `toml:"apiKeyFile"`
+	MaxVideos  int64                   `toml:"maxVideos"`
+	Channels   youtubedataapi.Channels `toml:"channels"`
 }
 
 type clipperTwitterConfig struct {
@@ -62,7 +63,6 @@ func main() {
 	var searchChannel bool
 	var searchVideo bool
 	var searchComment bool
-	var checkAllVideo bool
 	var checkChannelModified bool
 	var checkVideoModified bool
 	var checkCommentModified bool
@@ -74,10 +74,9 @@ func main() {
 	flag.BoolVar(&searchChannel, "searchChannel", true, "search channel")
 	flag.BoolVar(&searchVideo, "searchVideo", true, "search video")
 	flag.BoolVar(&searchComment, "searchComment", true, "search comment")
-	flag.BoolVar(&checkChannelModified, "checkChannelModified", false, "check channel modified")
-	flag.BoolVar(&checkVideoModified, "checkVideoModified", false, "check video modified")
-	flag.BoolVar(&checkCommentModified, "checkCommentModified", false, "check comment modified")
-	flag.BoolVar(&checkAllVideo, "checkAllVideo", false, "check all video")
+	flag.BoolVar(&checkChannelModified, "checkChannelModified", true, "check channel modified")
+	flag.BoolVar(&checkVideoModified, "checkVideoModified", true, "check video modified")
+	flag.BoolVar(&checkCommentModified, "checkCommentModified", true, "check comment modified")
 	flag.BoolVar(&skipSearch, "skipSearch", false, "skip search")
 	flag.BoolVar(&skipBuild, "skipBuild", false, "skip build")
 	flag.BoolVar(&skipNotify, "skipNotify", false, "skip Notify")
@@ -90,7 +89,7 @@ func main() {
 		return
 	}
 	verboseLoadedConfig(verbose, conf)
-	youtubeApiKey, err := youtubedataapi.LoadApiKey(conf.Youtube.ApiKeyFile)
+	youtubeApiKeys, err := youtubedataapi.LoadApiKey(conf.Youtube.ApiKeyFile)
 	if err != nil {
 		log.Printf("can not load api key of youtube: %v", err)
 		return
@@ -112,12 +111,12 @@ func main() {
 	}
 	defer databaseOperator.Close()
 	if !skipSearch {
-		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKey, conf.Youtube.Channels, databaseOperator)
+		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Channels, databaseOperator)
 		if err != nil {
 			log.Printf("can not create searcher of youtube: %v", err)
 			return
 		}
-		err = youtubeSearcher.Search(searchChannel, searchVideo, searchComment, checkChannelModified, checkVideoModified, checkCommentModified, checkAllVideo)
+		err = youtubeSearcher.Search(searchChannel, searchVideo, searchComment, checkChannelModified, checkVideoModified, checkCommentModified)
 		if err != nil {
 			log.Printf("can not search youtube: %v", err)
 			return
