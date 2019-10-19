@@ -112,6 +112,50 @@ type ChannelPage struct {
 	Dirty     int64
 }
 
+func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM replyComment WHERE videoId = ?`, videoId)
+        if err != nil {
+                return errors.Wrap(err, "can not delete replyComments")
+        }
+        // 削除処理の結果から削除されたレコード数を取得
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+                return errors.Wrap(err, "can not get rowsAffected of replyComment")
+        }
+        log.Printf("delete replyComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+
+        return nil
+}
+func (d *DatabaseOperator) DeleteTopLevelCommentsByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM topLevelComment WHERE videoId = ?`, videoId)
+        if err != nil {
+                return errors.Wrap(err, "can not delete topLevelComments")
+        }
+        // 削除処理の結果から削除されたレコード数を取得
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+                return errors.Wrap(err, "can not get rowsAffected of topLevelComment")
+        }
+        log.Printf("delete topLevelComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+
+        return nil
+}
+
+func (d *DatabaseOperator) DeleteCommentThreadsByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM commentThread WHERE videoId = ?`, videoId)
+        if err != nil {
+                return errors.Wrap(err, "can not delete commentThreads")
+        }
+        // 削除処理の結果から削除されたレコード数を取得
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+                return errors.Wrap(err, "can not get rowsAffected of commentThread")
+        }
+        log.Printf("delete commentThreads (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+
+        return nil
+}
+
 func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (error) {
 	for _, replyComment := range replyComments {
 		res, err := d.db.Exec(
@@ -418,6 +462,21 @@ func (d *DatabaseOperator) GetCommentThreadByCommentThreadId(commentThreadId str
         return nil, false, nil
 }
 
+func (d *DatabaseOperator) DeleteVideoByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM video WHERE videoId = ?`, videoId)
+        if err != nil {
+                return errors.Wrap(err, "can not delete video")
+        }
+        // 削除処理の結果から削除されたレコード数を取得
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+                return errors.Wrap(err, "can not get rowsAffected of video")
+        }
+        log.Printf("delete video (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+
+        return nil
+}
+
 func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
 	res, err := d.db.Exec(
             `INSERT OR REPLACE INTO video (
@@ -486,8 +545,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
         return nil
 }
 
-
-func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string. offset int64) ([]*Video, error) {
+func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string, offset int64) ([]*Video, error) {
         rows, err := d.db.Query(`select * from video where channelId = ? order by publishdAt desc limit ?,(select count(videoId) from video where channelId = ?);`, channelId, offset, channelId)
         if err != nil {
                 return nil, errors.Wrap(err, "can not get videos from database")
@@ -529,7 +587,6 @@ func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string. of
         }
         return videos, nil
 }
-
 
 func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, error) {
         rows, err := d.db.Query(`SELECT * FROM video WHERE channelId = ?`, channelId)

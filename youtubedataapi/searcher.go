@@ -308,23 +308,23 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
         }
 	// delete old videos
 	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, s.maxVideos)
-	if err ! nil {
+	if err != nil {
 		return errors.Wrapf(err, "can not get old videos (channelId = %v, maxVideos = %vv)", channel.ChannelId, s.maxVideos)
 	}
 	for _, video := range videos {
-		err := s.databaseOperator.deleteVideoByVideoId(video.VideoId)
+		err := s.databaseOperator.DeleteVideoByVideoId(video.VideoId)
 		if err != nil {
 			return errors.Wrapf(err, "can not delete old videos (videoId = %vv)", video.VideoId)
 		}
-		err = s.databaseOperator.deleteCommentThreadByVideoId(video.VideoId)
+		err = s.databaseOperator.DeleteCommentThreadsByVideoId(video.VideoId)
 		if err != nil {
 			return errors.Wrapf(err, "can not delete old comment threads (videoId = %vv)", video.VideoId)
 		}
-		err = s.databaseOperator.deleteTopLevelCommentByVideoId(video.VideoId)
+		err = s.databaseOperator.DeleteTopLevelCommentsByVideoId(video.VideoId)
 		if err != nil {
 			return errors.Wrapf(err, "can not delete old topLevelComments (videoId = %vv)", video.VideoId)
 		}
-		err = s.databaseOperator.deletereplyCommentByVideoId(video.VideoId)
+		err = s.databaseOperator.DeleteReplyCommentsByVideoId(video.VideoId)
 		if err != nil {
 			return errors.Wrapf(err, "can not delete old replyComments (videoId = %vv)", video.VideoId)
 		}
