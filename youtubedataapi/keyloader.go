@@ -22,7 +22,11 @@ func LoadApiKey(apiKeyFile string) ([]string, error) {
 	apiKeysStrings := strings.Split(string(apiKeysBytes), "\n")
 	apiKeys := make([]string, 0, len(apiKeysStrings))
 	for _, s := range apiKeysStrings {
-		apiKeys = append(apiKeys, strings.TrimSpace(s))
+		apiKey := strings.TrimSpace(s)
+		if apiKey == "" {
+			continue
+		}
+		apiKeys = append(apiKeys, apiKey)
 	}
 	return apiKeys, nil
 }
