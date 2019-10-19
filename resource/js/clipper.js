@@ -1,20 +1,22 @@
 var app = new Vue({
 	el:"#app",
 	data:{
-		defaultDuration: 60,
+		defaultDuration: 90,
 		channelId: "",
 		clipRecommenders: "",
 		clipVideoTitle: "",
 		originUrl: "",
 		clips: null,
 		clipsIndex: 0,
-		youtubePlayer: null
+		youtubePlayer: null,
+		lastYoutubePlayerStatus: -1
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
-		let pagePropUrl = "json/" + this.channelId + ".json"
+		let pagePropUrl = "json/" + this.channelId + ".json";
 		axios.get(pagePropUrl).then(res => {
 			this.clips = res.data;
+			console.log("0000000000");
 			this.youtubePlayerInit();
 		}).catch(res => {
 			console.log(res);
@@ -22,12 +24,6 @@ var app = new Vue({
 		});
 	},
 	methods: {
-		youtubePlayerInit: function() {
-			let tag = document.createElement('script');
-			tag.src = "https://www.youtube.com/iframe_api";
-			let firstScriptTag = document.getElementsByTagName('script')[0];
-			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-		},
 		fixClipDuration: function(clip, nextClip) {
 			if (clip.End == 0) {
 				clip.End = clip.Start + this.defaultDuration;
@@ -43,16 +39,20 @@ var app = new Vue({
 			return "https://youtu.be/" + clip.VideoId + "?t=" + clip.Start;
 		},
 		getNextClip: function() {
+			console.log("====");
 			let clip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex]));
 			let nextClip = null;
 			if (this.clipsIndex < this.clips.length - 1) {
-				let nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
+				nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
 			}
+			console.log(clip);
+			console.log(nextClip);
 			this.fixClipDuration(clip, nextClip);
 			this.clipsIndex += 1;
 			if (this.clipsIndex == this.clips.length) {
 				this.clipsIndex = 0;
 			}
+			console.log(clip);
 			return clip;
 		},
 		updateClipView: function(clip) {
@@ -68,6 +68,7 @@ var app = new Vue({
 			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 		},
 		youtubePlayerCreate: function() {
+			console.log("11111111111");
 			let clip = this.getNextClip();
 			this.updateClipView(clip)
 			this.youtubePlayer = new YT.Player('player', {
@@ -90,21 +91,28 @@ var app = new Vue({
 				endSeconds: clip.End
 			});
 		},
-		onYoutubePlayerReady: function() {
+		onYoutubePlayerReady: function(event) {
+				console.log(event);
 
 		},
 		onYoutubePlayerStateChange: function(event) {
-			let ytStatus = event.target.getPlayerState();
-			if (ytStatus == YT.PlayerState.ENDED) {
+			console.log(event);
+			let st = event.target.getPlayerState();
+			if (this.lastYoutubePlayerStatus == YT.PlayerState.PLAYING && st == YT.PlayerState.ENDED) {
+				console.log("xxxxxx");
 				this.youtubePlayerLoadNext();
 			}
+			this.lastYoutubePlayerStatus = event.target.getPlayerState();
 		},
-		onYoutubePlayerPlaybackQualityChange: function() {
+		onYoutubePlayerPlaybackQualityChange: function(event) {
+				console.log(event);
 
 		},
 		onYoutubePlayerError: function(event) {
+			console.log(event);
 			let error = event.data;
 			if (error >= 100) {
+				console.log("yyyyyyy");
 				this.youtubePlayerLoadNext();
 			}
 		}
@@ -112,5 +120,6 @@ var app = new Vue({
 });
 
 function onYouTubeIframeAPIReady() {
+	console.log("zzzzzzzzzzz");
 	app.youtubePlayerCreate();
 }

@@ -207,17 +207,17 @@ func (b *Builder)parseTimeRange(timeRangeString string) (*timeRange) {
 	}
 }
 
-func (b *Builder)parseTimeRangeList(textOriginal string) ([]*timeRange) {
-	timeRangeList := make([]*timeRange, 0)
+func (b *Builder)parseTimeRanges(textOriginal string) ([]*timeRange) {
+	timeRanges := make([]*timeRange, 0)
 	timeRageStringList := b.timeRangeRegexp.FindAllString(textOriginal, -1)
 	for _, timeRangeString := range timeRageStringList {
 		timeRange := b.parseTimeRange(timeRangeString)
 		if timeRange.start == 0 {
 			continue
 		}
-		timeRangeList = append(timeRangeList, timeRange)
+		timeRanges = append(timeRanges, timeRange)
 	}
-	return timeRangeList
+	return timeRanges
 }
 
 func (b *Builder)adjustTimRanges(timeRanges []*timeRangeProperty) ([]*timeRangeProperty) {
@@ -259,17 +259,12 @@ func (b *Builder)adjustTimRanges(timeRanges []*timeRangeProperty) ([]*timeRangeP
 		}
 		prevTimeRange = lastTimeRange
 		lastTimeRange = timeRange
-		if prevTimeRange.end >= lastTimeRange.start  {
+		if prevTimeRange.end > lastTimeRange.start  {
 			prevTimeRange.end = lastTimeRange.start
 		}
 	}
 	return timeRanges
 }
-
-
-
-
-
 
 func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelProperty, error) {
 	// create channel property
@@ -311,7 +306,7 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			videoProp.updateAt = comment.UpdateAt
 		}
 		// convert text to time ranges
-		timeRanges := b.parseTimeRangeList(comment.TextOriginal)
+		timeRanges := b.parseTimeRanges(comment.TextOriginal)
 		for _, timeRange := range timeRanges {
 			timeRangeProp := &timeRangeProperty{
 				start: timeRange.start,
