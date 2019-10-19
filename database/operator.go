@@ -486,6 +486,51 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
         return nil
 }
 
+
+func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string. offset int64) ([]*Video, error) {
+        rows, err := d.db.Query(`select * from video where channelId = ? order by publishdAt desc limit ?,(select count(videoId) from video where channelId = ?);`, channelId, offset, channelId)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get videos from database")
+        }
+        defer rows.Close()
+	videos := make([]*Video, 0)
+        for rows.Next() {
+                video := &Video{}
+                // カーソルから値を取得
+                err := rows.Scan(
+                    &video.VideoId,
+                    &video.Etag,
+                    &video.Name,
+                    &video.ChannelId,
+                    &video.ChannelTitle,
+                    &video.Title,
+                    &video.Description,
+                    &video.PublishdAt,
+                    &video.ThumbnailDefaultUrl,
+                    &video.ThumbnailDefaultWidth,
+                    &video.ThumbnailDefaultHeight,
+                    &video.ThumbnailHighUrl,
+                    &video.ThumbnailHighWidth,
+                    &video.ThumbnailHighHeight,
+                    &video.ThumbnailMediumUrl,
+                    &video.ThumbnailMediumWidth,
+                    &video.ThumbnailMediumHeight,
+		    &video.EmbedHeight,
+		    &video.EmbedWidth,
+		    &video.EmbedHtml,
+                    &video.StatusUploadStatus,
+                    &video.StatusEmbeddable,
+		    &video.ResponseEtag,
+                )
+                if err != nil {
+                        return nil, errors.Wrap(err, "can not scan videos from database")
+                }
+		videos = append(videos, video)
+        }
+        return videos, nil
+}
+
+
 func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, error) {
         rows, err := d.db.Query(`SELECT * FROM video WHERE channelId = ?`, channelId)
         if err != nil {

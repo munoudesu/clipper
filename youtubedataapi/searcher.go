@@ -133,7 +133,6 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 					log.Printf("skipped because commentThread is already exists in database (commentThreadId = %v)", commentThread.CommentThreadId)
 					continue
 				}
-				// 更新チェックもする場合
 				newCommentThread, notModified, notFound, err := s.getCommentThreadByCommentThreadId(video, commentThread.CommentThreadId, commentThread.ResponseEtag)
 				if err != nil {
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", commentThread.CommentThreadId)
@@ -155,7 +154,6 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 					return errors.Wrapf(err, "can not update commentThread (commentThreadId = %v)", newCommentThread.CommentThreadId)
 				}
 			} else {
-				// DB上にレコードがまだないので新規に情報を取得して追加
 				newCommentThread, _, notFound,  err := s.getCommentThreadByCommentThreadId(video, item.Id, "")
 				if err != nil {
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", item.Id)
@@ -229,6 +227,7 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 }
 
 func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (error) {
+	// search new videos
         searchService := youtube.NewSearchService(s.getYoutubeService())
         pageToken := ""
         for loop := s.maxVideos; loop > 0; loop -= 50{
@@ -266,7 +265,6 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 					log.Printf("skipped because video is already exists in database (videoId = %v)", video.VideoId)
 					continue
 				}
-				// 更新チェックもする場合
 				newVideo, notModified, notFound, err := s.getVideoByVideoId(channel, video.VideoId, video.ResponseEtag)
 				if err != nil {
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", video.VideoId)
@@ -288,7 +286,6 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 					return errors.Wrapf(err, "can not update video (videoId = %v)", newVideo.VideoId)
 				}
 			} else {
-				// DB上にレコードがまだないので新規に情報を取得して追加
 				newVideo, _, notFound, err := s.getVideoByVideoId(channel, item.Id.VideoId, "")
 				if err != nil {
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", item.Id.VideoId)
@@ -309,6 +306,29 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
                 }
                 break
         }
+	// delete old videos
+	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, s.maxVideos)
+	if err ! nil {
+		return errors.Wrapf(err, "can not get old videos (channelId = %v, maxVideos = %vv)", channel.ChannelId, s.maxVideos)
+	}
+	for _, video := range videos {
+		err := s.databaseOperator.deleteVideoByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old videos (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.deleteCommentThreadByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old comment threads (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.deleteTopLevelCommentByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old topLevelComments (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.deletereplyCommentByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old replyComments (videoId = %vv)", video.VideoId)
+		}
+	}
 	return nil
 }
 
@@ -364,7 +384,6 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 			log.Printf("skipped because channel is already exists in database (channelId = %v)", channel.ChannelId)
 			return nil
 		}
-		// 更新チェックもする場合
 		newChannel, notModified, notFound, err := s.getChannelByChannelId(name, channel.ChannelId, channel.ResponseEtag)
 		if err != nil {
 			return errors.Wrapf(err, "can not get channel by channelId with api (channelId = %v)", channel.ChannelId)
@@ -386,7 +405,6 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 			return errors.Wrapf(err, "can not update channel (channelId = %v, etag = %v)", newChannel.ChannelId, newChannel.Etag)
 		}
 	} else {
-		// DB上にレコードがまだないので新規に情報を取得して追加
 		newChannel, _, notFound, err := s.getChannelByChannelId(name, channelId, "")
 		if err != nil {
 			return errors.Wrapf(err, "can not get channel by channelId with api (channelId = %v)", channelId)
@@ -423,6 +441,10 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 				return errors.Wrapf(err, "can not get videos from database")
 			}
 			for _, video := range videos {
+				if !video.StatusEmbeddable {
+					log.Printf("skip get comment because unembeddable video (videoId = %v)", video.VideoId)
+					continue
+				}
 				err := s.searchCommentThreadsByVideo(video, checkCommentModified)
 				if err != nil {
 					return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)

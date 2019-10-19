@@ -21,6 +21,9 @@ import (
 
 const timeRangeRegexpExpr = "[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?(([ 　]*[~-→～－―][ 　]*[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?)|([ 　]*@[ 　]*([0-9]+[hH])?([0-9]+[mM])?([0-9]+[sS])?))?"
 const startEndSepRegexExpr = "[~-→～－―]"
+const hourSepRegexExpr = "[hH]"
+const minSepRegexExpr = "[mM]"
+const secSepRegexExpr = "[sS]"
 
 type timeRange struct {
 	start         int64
@@ -111,7 +114,7 @@ func (b *Builder)timeStringToSeconds(timeString string) (int64) {
 func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 	// parse 1h2m3s, 1h2m 1h3s, 1m2s, 1s
 	var seconds int64
-	elems := strings.SplitN(durationString, "h", 2)
+	elems := b.hourSepRegexp.Split(durationString, 2)
 	if len(elems) == 2 {
 		hourString := elems[0]
 		hour, err := strconv.ParseInt(strings.TrimSpace(hourString), 10, 64)
@@ -122,7 +125,7 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 		seconds += hour * 3600
 		durationString = elems[1]
 	}
-	elems = strings.SplitN(durationString, "m", 2)
+	elems := b.minSepRegexp.Split(durationString, 2)
 	if len(elems) == 2 {
 		minString := elems[0]
 		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
@@ -133,7 +136,7 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 		seconds += min * 60
 		durationString = elems[1]
 	}
-	elems = strings.SplitN(durationString, "s", 2)
+	elems := b.secSepRegexp.Split(durationString, 2)
 	if len(elems) == 2 {
 		secString := elems[0]
 		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
@@ -413,6 +416,18 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not compile startEndSepRegexExpr (%v)", startEndSepRegexExpr)
 	}
+	hourRegexp, err := regexp.Compile(hourSepRegexExpr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not compile hourSepRegexExpr (%v)", hourSepRegexExpr)
+	}
+	minRegexp, err := regexp.Compile(minSepRegexExpr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not compile minSepRegexExpr (%v)", minSepRegexExpr)
+	}
+	secRegexp, err := regexp.Compile(secSepRegexExpr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not compile secSepRegexExpr (%v)", secSepRegexExpr)
+	}
 	templatePattern := filepath.Join(templateDirPath, "*.tmpl")
 	templates, err := template.ParseGlob(templatePattern)
 	if err != nil {
@@ -449,6 +464,9 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 		databaseOperator: databaseOperator,
 		timeRangeRegexp: timeRangeRegexp,
 		startEndSepRegexp: startEndSepRegexp,
+		hourSepRegexp: hourSepRegexp,
+		minSepRegexp: minSepRegexp,
+		secSepRegexp: secSepRegexp,
 		maxDuration: maxDuration,
 		adjustStartTimeSpan: adjustStartTimeSpan,
 		templates: templates,
