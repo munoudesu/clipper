@@ -31,24 +31,29 @@ type timeRange struct {
 }
 
 type commentProperty struct {
+	commentId   string
 	author      string
 	authorImage string
 	text        string
 }
 
 type timeRangeProperty struct {
-	start    int64
-	end      int64
-	comments map[commentProperty]bool
+	start                int64
+	end                  int64
+	comments             []*commentProperty
+	commentsDupCheckMap  map[string]bool
 }
 
 type videoProperty struct {
-	// XXXXX comment updatedAt 最新のもの TODO
-	timeRangeList []*timeRangeProperty
+	videoId       string
+	title         string
+	updateAt      string
+	timeRanges    []*timeRangeProperty
 }
 
 type channelProperty struct {
-	videos map[string]*videoProperty
+	videos             []*videoProperty
+	videosDupCheckMap  map[string]int
 }
 
 type Builder struct {
@@ -68,6 +73,14 @@ type Builder struct {
 	maxDuration           int64
 	adjustStartTimeSpan   int64
 	templates             *template.Template
+}
+
+type Clip struct {
+	VideoId      string
+	Title        string
+	Start        int64
+	End          int64
+	Recommenders []string
 }
 
 func (b *Builder)timeStringToSeconds(timeString string) (int64) {
@@ -207,13 +220,13 @@ func (b *Builder)parseTimeRangeList(textOriginal string) ([]*timeRange) {
 	return timeRangeList
 }
 
-func (b *Builder)adjustTimRangeList(timeRangeList []*timeRangeProperty) ([]*timeRangeProperty) {
+func (b *Builder)adjustTimRanges(timeRanges []*timeRangeProperty) ([]*timeRangeProperty) {
 	// start時間がadjustStartTimeSpan以内のずれなら一つにまとめる、この時startとendは最大になるようにする
 	for {
 		var prevTimeRange *timeRangeProperty
 		var lastTimeRange *timeRangeProperty
 		adjustIdx := -1
-		for idx, timeRange := range timeRangeList {
+		for idx, timeRange := range timeRanges {
 			if lastTimeRange == nil {
 				lastTimeRange = timeRange
 				continue
@@ -224,8 +237,8 @@ func (b *Builder)adjustTimRangeList(timeRangeList []*timeRangeProperty) ([]*time
 				if prevTimeRange.end < lastTimeRange.end {
 					prevTimeRange.end = lastTimeRange.end
 				}
-				for comment, _ := range lastTimeRange.comments {
-					prevTimeRange.comments[comment] = true
+				for _, comment := range lastTimeRange.comments {
+					prevTimeRange.comments = append(prevTimeRange.comments, comment)
 				}
 				adjustIdx = idx
 				break
@@ -234,12 +247,12 @@ func (b *Builder)adjustTimRangeList(timeRangeList []*timeRangeProperty) ([]*time
 		if adjustIdx == -1 {
 			break
 		}
-		timeRangeList = append(timeRangeList[:adjustIdx], timeRangeList[adjustIdx+1:]...)
+		timeRanges = append(timeRanges[:adjustIdx], timeRanges[adjustIdx+1:]...)
 	}
 	// 任意の要素のend時間が次の要素のstartよりも大きい場合はendを次の要素のstartにする
 	var prevTimeRange *timeRangeProperty
 	var lastTimeRange *timeRangeProperty
-	for _, timeRange := range timeRangeList {
+	for _, timeRange := range timeRanges {
 		if lastTimeRange == nil {
 			lastTimeRange = timeRange
 			continue
@@ -250,81 +263,112 @@ func (b *Builder)adjustTimRangeList(timeRangeList []*timeRangeProperty) ([]*time
 			prevTimeRange.end = lastTimeRange.start
 		}
 	}
-	return timeRangeList
+	return timeRanges
 }
 
+
+
+
+
+
 func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelProperty, error) {
+	// create channel property
 	comments, err := b.databaseOperator.GetAllCommentsByChannelIdAndLikeText(channel.ChannelId, "%:%")
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not get comments from database (channelId = %v)", channel.ChannelId)
 	}
 	channelProp := &channelProperty{
-		videos: make(map[string]*videoProperty),
+		videos: make([]*videoProperty, 0),
+		videosDupCheckMap: make(map[string]int),
 	}
 	for _, comment := range comments {
-		videoProp, ok := channelProp.videos[comment.VideoId]
-		if !ok {
-			videoProp = &videoProperty{
-				timeRangeList: make([]*timeRangeProperty, 0),
-			}
-			channelProp.videos[comment.VideoId] = videoProp
+		video, ok, err := b.databaseOperator.GetVideoByVideoId(comment.VideoId)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can not get video from database (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
 		}
-		timeRangeList := b.parseTimeRangeList(comment.TextOriginal)
-		for _, timeRange := range timeRangeList {
+		if !ok {
+			log.Printf("skip comment not found video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
+			continue
+		}
+		if !video.StatusEmbeddable {
+			log.Printf("skip comment because unembeddable video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
+			continue
+		}
+		idx, ok := channelProp.videosDupCheckMap[comment.VideoId]
+		if !ok {
+			videoProp := &videoProperty{
+				videoId: comment.VideoId,
+				title: video.Title,
+				updateAt: comment.UpdateAt,
+				timeRanges: make([]*timeRangeProperty, 0),
+			}
+			channelProp.videos = append(channelProp.videos, videoProp)
+			idx = len(channelProp.videos) - 1
+			channelProp.videosDupCheckMap[comment.VideoId] = idx
+		}
+		videoProp := channelProp.videos[idx]
+		if videoProp.updateAt < comment.UpdateAt {
+			videoProp.updateAt = comment.UpdateAt
+		}
+		// convert text to time ranges
+		timeRanges := b.parseTimeRangeList(comment.TextOriginal)
+		for _, timeRange := range timeRanges {
 			timeRangeProp := &timeRangeProperty{
 				start: timeRange.start,
 				end: timeRange.end,
-				comments: make(map[commentProperty]bool),
+				comments: make([]*commentProperty, 0),
+				commentsDupCheckMap: make(map[string]bool),
 			}
-			commentProperty := commentProperty{
+			commentProperty := &commentProperty{
+				commentId: comment.CommentId,
 				author: comment.AuthorDisplayName,
 				authorImage: comment.AuthorProfileImageUrl,
 				text: comment.TextOriginal,
 			}
-			timeRangeProp.comments[commentProperty] = true
-			videoProp.timeRangeList = append(videoProp.timeRangeList, timeRangeProp)
-			continue
+			_, ok := timeRangeProp.commentsDupCheckMap[comment.CommentId]
+			if !ok {
+				timeRangeProp.comments = append(timeRangeProp.comments, commentProperty)
+				timeRangeProp.commentsDupCheckMap[comment.CommentId] = true
+			}
+			videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 		}
-		sort.Slice(videoProp.timeRangeList, func(i, j int) bool {
-			return videoProp.timeRangeList[i].start < videoProp.timeRangeList[j].start
-		})
-		videoProp.timeRangeList = b.adjustTimRangeList(videoProp.timeRangeList)
+	}
+	// sort and adjust
+	sort.Slice(channelProp.videos, func(i, j int) bool {
+		return channelProp.videos[i].updateAt > channelProp.videos[j].updateAt
+	})
+	for _, videoProp := range channelProp.videos {
+                sort.Slice(videoProp.timeRanges, func(i, j int) bool {
+                        return videoProp.timeRanges[i].start < videoProp.timeRanges[j].start
+                })
+                videoProp.timeRanges = b.adjustTimRanges(videoProp.timeRanges)
 	}
 	return channelProp, nil
 }
 
-type Clip struct {
-	VideoId string
-	Start   int64
-	End     int64
-	Recommenders []string
-}
-
-func (b *Builder)buildPageProp(channel *database.Channel) ([]*Clip, error) {
-	clipProp, err := b.makeChannelProperty(channel)
+func (b *Builder)buildClips(channel *database.Channel) ([]*Clip, error) {
+	channelProp, err := b.makeChannelProperty(channel)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not make clip property (channelId = %v)", channel.ChannelId)
 	}
-	pageProp := make([]*Clip, 0)
-	for videoId, videoProp := range clipProp.videos {
-		for _, timeRangeProp := range videoProp.timeRangeList {
-			authors := make([]string, 0, len(timeRangeProp.comments))
-			for commentProp, _ := range timeRangeProp.comments {
-				authors = append(authors, commentProp.author)
+	clips := make([]*Clip, 0)
+	for _, video := range channelProp.videos {
+		for _, timeRange := range video.timeRanges {
+			authors := make([]string, 0, len(timeRange.comments))
+			for _, comment := range timeRange.comments {
+				authors = append(authors, comment.author)
 			}
-			sort.Slice(authors, func(i, j int) bool {
-				return authors[i] < authors[j]
-			})
 			clip := &Clip {
-				VideoId: videoId,
-				Start: timeRangeProp.start,
-				End: timeRangeProp.end,
+				VideoId: video.videoId,
+				Title: video.title,
+				Start: timeRange.start,
+				End: timeRange.end,
 				Recommenders: authors,
 			}
-			pageProp = append(pageProp, clip)
+			clips = append(clips, clip)
 		}
 	}
-	return pageProp, nil
+	return clips, nil
 }
 
 func (b *Builder)Build() (error) {
@@ -341,7 +385,7 @@ func (b *Builder)Build() (error) {
 	}
 	// create index.html
 	indexHtmlPath := filepath.Join(b.buildDirPath, "index.html")
-	indexHtmlFile, err := os.OpenFile(indexHtmlPath, os.O_WRONLY|os.O_CREATE, 0644)
+	indexHtmlFile, err := os.OpenFile(indexHtmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtmlPath)
 	}
@@ -353,7 +397,7 @@ func (b *Builder)Build() (error) {
 	// create channel page
 	for _, dbChannel := range dbChannels {
 		pageHtmlPath := filepath.Join(b.buildDirPath, dbChannel.ChannelId + ".html")
-		pageHtmlFile, err := os.OpenFile(pageHtmlPath, os.O_WRONLY|os.O_CREATE, 0644)
+		pageHtmlFile, err := os.OpenFile(pageHtmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			return errors.Wrapf(err, "can not open page html file (path = %v)", pageHtmlPath)
 		}
@@ -369,23 +413,24 @@ func (b *Builder)Build() (error) {
                 if err != nil {
                         return  errors.Wrapf(err, "can not get channel page from database (channelId = %v)", dbChannel.ChannelId)
                 }
-		pageProp, err := b.buildPageProp(dbChannel)
+		clips, err := b.buildClips(dbChannel)
 		if err != nil {
 			return errors.Wrapf(err, "can not get build page (channelId = %v)", dbChannel.ChannelId)
 		}
-		jsonBytes, err := json.Marshal(pageProp)
+		clipsJsonBytes, err := json.Marshal(clips)
 		if err != nil {
 			return errors.Wrapf(err, "can not marshal json (channelId = %v)", dbChannel.ChannelId)
 		}
-		newPageHash := fmt.Sprintf("%x", sha1.Sum(jsonBytes))
+		newPageHash := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
 		if ok && lastChannelPage.PageHash == newPageHash {
 			log.Printf("skip because same page hash (oldPageHash = %v, newPageHash = %v", lastChannelPage.PageHash, newPageHash)
 			continue
 		}
-		jsonPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json")
-		err = ioutil.WriteFile(jsonPath, jsonBytes, 0644)
+		pageJsonPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json")
+		// XXXX TODO deflate gzip
+		err = ioutil.WriteFile(pageJsonPath, clipsJsonBytes, 0644)
 		if err != nil {
-			return errors.Wrapf(err, "can not write json to file (channelId = %v, path = %v)", dbChannel.ChannelId, jsonPath)
+			return errors.Wrapf(err, "can not write json to file (channelId = %v, path = %v)", dbChannel.ChannelId, pageJsonPath)
 		}
 		err = b.databaseOperator.UpdatePageHashAndDirtyOfChannelPage(dbChannel.ChannelId, newPageHash, 1)
                 if err != nil {
