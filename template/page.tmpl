@@ -24,10 +24,10 @@
 		<div id="titleContent">
 			<div id="title">clipper</div>
 		</div>
-		<div id="settingModal" v-show="showSettingContent" v-on:click="closeSetting">
+		<div id="settingModal" v-show="showSettingContent">
 			<div id="settingContent">
 				<div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
-				<div>default duration: <input v-model.number="defaultDuration" type="number" placeholder="default duration" /></div>
+				<div>default duration: <input v-model.number="settings.defaultDuration" type="number" placeholder="default duration" /></div>
 				<div><button class="customButton" v-on:click="closeSetting">Close</button></div>
 			</div>
 		</div>

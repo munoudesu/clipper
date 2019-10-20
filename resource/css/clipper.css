@@ -19,7 +19,7 @@ body {
 }
 
 #settingModal{
-	z-index: 1;
+	z-index: 2000;
 	position: fixed;
 	top:0;
 	left:0;
@@ -33,7 +33,7 @@ body {
 }
 
 #settingContent{
-	z-index: 2;
+	z-index: 3000;
 	width: 40%;
 	padding: 20px;
 	background: #f0f0f0;

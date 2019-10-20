@@ -1,7 +1,9 @@
 var app = new Vue({
 	el:"#app",
 	data:{
-		defaultDuration: 90,
+		settings: {
+			defaultDuration: 90
+		},
 		channelId: "",
 		clipRecommenders: "",
 		clipVideoTitle: "",
@@ -22,12 +24,31 @@ var app = new Vue({
 			console.log("can not get page property");
 		});
 	},
+	watch: {
+		settings(value) {
+			localStorage.defaultDuration = value;
+		}
+	},
 	methods: {
+		loadSetting: function() {
+			if (localStorage.getItem('settings')) {
+				try {
+					this.settings = JSON.parse(localStorage.getItem('settings'));
+				} catch(e) {
+					localStorage.removeItem('settings');
+				}
+			}
+		},
+		saveSetting: function() {
+			localStorage.setItem('settings', JSON.stringify(this.settings));
+		},
 		openSetting: function() {
+			this.loadSetting();
 			this.showSettingContent = true;
 		},
 		closeSetting: function() {
 			this.showSettingContent = false;
+			this.saveSetting();
 		},
 		fixClipDuration: function(clip, nextClip) {
 			if (clip.End == 0) {
