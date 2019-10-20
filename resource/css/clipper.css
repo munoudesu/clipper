@@ -18,32 +18,15 @@ body {
 	padding: 10px;
 }
 
-#settingModal{
-	z-index: 2000;
-	position: fixed;
-	top:0;
-	left:0;
-	width:100%;
-	height:100%;
-	background-color:rgba(0,0,0,0.4);
-	display: -webkit-flex;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-#settingContent{
-	z-index: 3000;
-	width: 40%;
-	padding: 20px;
-	background: #f0f0f0;
-}
-
-#playerContent{
+#playerContent {
 	text-align: center;
 }
 
-#controllerContent{
+#controllerContent {
+	text-align: center;
+}
+
+#futterContent {
 	text-align: center;
 }
 
@@ -76,3 +59,23 @@ button.customButton:hover {
 	color: #ffffff;
 }
 
+div.modal {
+	z-index: 2000;
+	position: fixed;
+	top:0;
+	left:0;
+	width:100%;
+	height:100%;
+	background-color:rgba(0,0,0,0.4);
+	display: -webkit-flex;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+div.modalContent {
+	z-index: 3000;
+	width: 60%;
+	padding: 20px;
+	background: #f0f0f0;
+}

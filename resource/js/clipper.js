@@ -12,22 +12,19 @@ var app = new Vue({
 		clipsIndex: -1,
 		youtubePlayer: null,
 		lastYoutubePlayerStatus: -1,
-		showSettingContent: false
+		showSettingContent: false,
+		showDescriptionContent: false
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
 		let pagePropUrl = "json/" + this.channelId + ".json";
 		axios.get(pagePropUrl).then(res => {
 			this.clips = res.data;
+			this.loadSetting();
 			this.youtubePlayerInit();
 		}).catch(res => {
 			console.log("can not get page property");
 		});
-	},
-	watch: {
-		settings(value) {
-			localStorage.defaultDuration = value;
-		}
 	},
 	methods: {
 		loadSetting: function() {
@@ -37,7 +34,7 @@ var app = new Vue({
 				} catch(e) {
 					localStorage.removeItem('settings');
 				}
-			}
+			} 
 		},
 		saveSetting: function() {
 			localStorage.setItem('settings', JSON.stringify(this.settings));
@@ -50,9 +47,15 @@ var app = new Vue({
 			this.showSettingContent = false;
 			this.saveSetting();
 		},
+		openDescription: function() {
+			this.showDescriptionContent = true;
+		},
+		closeDescription: function() {
+			this.showDescriptionContent = false;
+		},
 		fixClipDuration: function(clip, nextClip) {
 			if (clip.End == 0) {
-				clip.End = clip.Start + this.defaultDuration;
+				clip.End = clip.Start + this.settings.defaultDuration;
 			}
 			if (nextClip != null && clip.VideoId == nextClip.VideoId) {
 				if (clip.End > nextClip.Start) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"log"
 	"flag"
 	"encoding/json"
@@ -33,16 +34,39 @@ type clipperBuilderConfig struct {
 	AdjustStartTimeSpan int64  `toml:"adjustStartTimeSpan"`
 }
 
-//type clipperIpfsConfig struct {
-//	AddrPort string `toml:"addrPort"`
-//}
+type clipperWebConfig struct {
+	AddrPort     string `toml:"addrPort"`
+	TlsCertPath  string `toml:"tlsCertPath"`
+	TlsKeyPath   string `toml:"tlsKeyPath"`
+	RootdirPath  string `toml:"rootDirPath"`
+	CacheDir     string `toml:"cacheDir"`
+}
+
+type clipperIpfsConfig struct {
+	AddrPort string `toml:"addrPort"`
+}
 
 type clipperConfig struct {
 	Youtube  *clipperYoutubeConfig  `toml:"youtube"`
 	Twitter  *clipperTwitterConfig  `toml:"twitter"`
 	Database *clipperDatabaseConfig `toml:"database"`
 	Builder  *clipperBuilderConfig  `toml:"builder"`
-//	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
+	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
+}
+
+type commandArguments struct {
+	configFile           string
+	verbose              bool
+	searchChannel        bool
+	searchVideo          bool
+	searchComment        bool
+	checkChannelModified bool
+	checkVideoModified   bool
+	checkCommentModified bool
+	skipSearch           bool
+	skipBuild            bool
+	skipNotify           bool
+	runMode              string
 }
 
 func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
@@ -57,82 +81,85 @@ func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
 	log.Printf("loaded config: %v", string(j))
 }
 
-func main() {
-	var configFile string
-	var verbose bool
-	var searchChannel bool
-	var searchVideo bool
-	var searchComment bool
-	var checkChannelModified bool
-	var checkVideoModified bool
-	var checkCommentModified bool
-	var skipSearch bool
-	var skipBuild bool
-	var skipNotify bool
-	flag.StringVar(&configFile, "config", "clipper.conf", "config file")
-	flag.BoolVar(&verbose, "verbose", false, "verbose")
-	flag.BoolVar(&searchChannel, "searchChannel", true, "search channel")
-	flag.BoolVar(&searchVideo, "searchVideo", true, "search video")
-	flag.BoolVar(&searchComment, "searchComment", true, "search comment")
-	flag.BoolVar(&checkChannelModified, "checkChannelModified", true, "check channel modified")
-	flag.BoolVar(&checkVideoModified, "checkVideoModified", true, "check video modified")
-	flag.BoolVar(&checkCommentModified, "checkCommentModified", true, "check comment modified")
-	flag.BoolVar(&skipSearch, "skipSearch", false, "skip search")
-	flag.BoolVar(&skipBuild, "skipBuild", false, "skip build")
-	flag.BoolVar(&skipNotify, "skipNotify", false, "skip Notify")
-	flag.Parse()
-	cf, err := configurator.NewConfigurator(configFile)
-	conf := new(clipperConfig)
-	err = cf.Load(conf)
-	if err != nil {
-		log.Printf("can not load config: %v", err)
-		return
-	}
-	verboseLoadedConfig(verbose, conf)
+func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 	youtubeApiKeys, err := youtubedataapi.LoadApiKey(conf.Youtube.ApiKeyFile)
 	if err != nil {
 		log.Printf("can not load api key of youtube: %v", err)
-		return
+		os.Exit(1)
 	}
 	twitterApiKeyPair, err := twitterapi.LoadApiKey(conf.Twitter.ApiKeyFile)
 	if err != nil {
 		log.Printf("can not load api key pair of twitter: %v", err)
-		return
+		os.Exit(1)
 	}
 	databaseOperator, err := database.NewDatabaseOperator(conf.Database.DatabasePath)
 	if err != nil {
-		 log.Printf("can not create database operator: %v", err)
-		 return
+		log.Printf("can not create database operator: %v", err)
+		os.Exit(1)
 	}
 	err = databaseOperator.Open()
 	if err != nil {
 		log.Printf("can not open database: %v", err)
-		return
+		os.Exit(1)
 	}
 	defer databaseOperator.Close()
-	if !skipSearch {
+	if !cmdArgs.skipSearch {
 		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Channels, databaseOperator)
 		if err != nil {
 			log.Printf("can not create searcher of youtube: %v", err)
-			return
+			os.Exit(1)
 		}
-		err = youtubeSearcher.Search(searchChannel, searchVideo, searchComment, checkChannelModified, checkVideoModified, checkCommentModified)
+		err = youtubeSearcher.Search(cmdArgs.searchChannel, cmdArgs.searchVideo, cmdArgs.searchComment, cmdArgs.checkChannelModified, cmdArgs.checkVideoModified, cmdArgs.checkCommentModified)
 		if err != nil {
 			log.Printf("can not search youtube: %v", err)
-			return
+			os.Exit(1)
 		}
 	}
-	if !skipBuild {
+	if !cmdArgs.skipBuild {
 		builder, err := builder.NewBuilder(conf.Builder.SourceDirPath, conf.Builder.BuildDirPath, conf.Builder.MaxDuration, conf.Builder.AdjustStartTimeSpan, conf.Youtube.Channels, databaseOperator)
 		if err != nil {
 			log.Printf("can not create builder: %v", err)
-			return
+			os.Exit(1)
 		}
 		err = builder.Build()
 		if err != nil {
 			log.Printf("can not build page: %v", err)
-			return
+			os.Exit(1)
 		}
 	}
 	log.Printf("%v",twitterApiKeyPair)
+}
+
+func web(conf *clipperConfig, cmdArgs *commandArguments) {
+
+}
+
+func main() {
+	cmdArgs := new(commandArguments)
+	flag.StringVar(&cmdArgs.configFile, "config", "clipper.conf", "config file")
+	flag.BoolVar(&cmdArgs.verbose, "verbose", false, "verbose")
+	flag.BoolVar(&cmdArgs.searchChannel, "searchChannel", true, "search channel")
+	flag.BoolVar(&cmdArgs.searchVideo, "searchVideo", true, "search video")
+	flag.BoolVar(&cmdArgs.searchComment, "searchComment", true, "search comment")
+	flag.BoolVar(&cmdArgs.checkChannelModified, "checkChannelModified", true, "check channel modified")
+	flag.BoolVar(&cmdArgs.checkVideoModified, "checkVideoModified", true, "check video modified")
+	flag.BoolVar(&cmdArgs.checkCommentModified, "checkCommentModified", true, "check comment modified")
+	flag.BoolVar(&cmdArgs.skipSearch, "skipSearch", false, "skip search")
+	flag.BoolVar(&cmdArgs.skipBuild, "skipBuild", false, "skip build")
+	flag.BoolVar(&cmdArgs.skipNotify, "skipNotify", false, "skip Notify")
+	flag.StringVar(&cmdArgs.runMode, "runMode", "crawl", "run mode crawl or web")
+	flag.Parse()
+	cf, err := configurator.NewConfigurator(cmdArgs.configFile)
+	conf := new(clipperConfig)
+	err = cf.Load(conf)
+	if err != nil {
+		log.Printf("can not load config: %v", err)
+		os.Exit(1)
+	}
+	verboseLoadedConfig(cmdArgs.verbose, conf)
+	if cmdArgs.runMode == "crawl" {
+		crawl(conf, cmdArgs)
+	} else if cmdArgs.runMode == "web" {
+		web(conf, cmdArgs)
+	}
 }

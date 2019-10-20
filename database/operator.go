@@ -107,9 +107,9 @@ type ReplyComment struct {
 type CommonComment ReplyComment
 
 type ChannelPage struct {
-	ChannelId string
-	PageHash  string
-	Dirty     int64
+	ChannelId  string
+	Sha1Digest string
+	Dirty      int64
 }
 
 func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) {
@@ -764,11 +764,11 @@ func (d *DatabaseOperator) GetChannelByChannelId(channelId string) (*Channel, bo
         return nil, false, nil
 }
 
-func (d *DatabaseOperator) UpdatePageHashAndDirtyOfChannelPage(channelId string, pageHash string, dirty int64) (error) {
+func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId string, pageHash string, dirty int64) (error) {
 	res, err := d.db.Exec(
             `INSERT OR REPLACE INTO channelPage (
                 channelId,
-                pageHash,
+                sha1Digest,
                 dirty
             ) VALUES (
                 ?, ?, ?
@@ -816,7 +816,7 @@ func (d *DatabaseOperator) GetChannelPageByChannelId(channelId string) (*Channel
                 // カーソルから値を取得
                 err := rows.Scan(
                     &channelPage.ChannelId,
-                    &channelPage.PageHash,
+                    &channelPage.Sha1Digest,
                     &channelPage.Dirty,
                 )
                 if err != nil {
@@ -945,9 +945,9 @@ func (d *DatabaseOperator) createTables() (error) {
 
         channelPageTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS channelPage (
-                channelId TEXT PRIMARY KEY,
-                pageHash  TEXT NOT NULL,
-                dirty     INTEGER NOT NULL
+                channelId   TEXT PRIMARY KEY,
+                sha1Digest  TEXT NOT NULL,
+                dirty       INTEGER NOT NULL
 	)`
 	_, err = d.db.Exec(channelPageTableCreateQuery);
 	if  err != nil {

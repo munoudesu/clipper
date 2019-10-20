@@ -18,18 +18,18 @@
 <body>
 	<div id="app">
 		<div id="headerContent">
-			<div id="openSettingButton"><button class="customButton" v-on:click="openSetting">setting</button></div>
+			<div><button class="customButton" v-on:click="openSetting">設定</button></div>
 			<hr/>
+		</div>
+		<div class="modal" v-show="showSettingContent">
+			<div class="modalContent">
+				<div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
+				<div>標準再生時間: <input v-model.number="settings.defaultDuration" type="number" placeholder="default duration" /></div>
+				<div><button class="customButton" v-on:click="closeSetting">閉じる</button></div>
+			</div>
 		</div>
 		<div id="titleContent">
 			<div id="title">clipper</div>
-		</div>
-		<div id="settingModal" v-show="showSettingContent">
-			<div id="settingContent">
-				<div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
-				<div>default duration: <input v-model.number="settings.defaultDuration" type="number" placeholder="default duration" /></div>
-				<div><button class="customButton" v-on:click="closeSetting">Close</button></div>
-			</div>
 		</div>
 		<div id="playerContent">
 			<div> {{ `{{ clipRecommenders }}` }} </div>
@@ -37,8 +37,30 @@
 			<div id="player"></div>
 			<div id="youtubePagelink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
 			<div id="controllerContent">
-				<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">previous</button></span>
-				<span class="customPaddingLeft"><button class="customButton" v-on:click="playNextClip">next</button></span>
+				<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">←前へ</button></span>
+				<span class="customPaddingLeft"><button class="customButton" v-on:click="playNextClip">次へ→</button></span>
+			</div>
+		</div>
+		<div id="futterContent">
+			<hr/>
+			<div><button class="customButton" v-on:click="openDescription">説明</button></div>
+		</div>
+		<div class="modal" v-show="showDescriptionContent">
+			<div class="modalContent">
+				<div>
+					<p>
+						このページはyoutubeチャンネルの動画とコメントを収集して、<br>
+						コメントの時間から動画のムービークリップを再生しています。<br>
+						以下のような時間フォーマットから再生時間を抽出します。<br>
+						<ul>
+						<li>00:01-00:05 (1秒から５秒まで)</li>
+						<li>00:00:01-00:00:05 (1秒から５秒まで)</li>
+						<li>00:00:01@0h0m4s (1秒から５秒まで)</li>
+						</ul>
+						終了時間がない場合は設定の"標準再生時間"を足した値が終了時間になります。<br>
+					</p>
+				</div>
+				<div><button class="customButton" v-on:click="closeDescription">閉じる</button></div>
 			</div>
 		</div>
 	</div>

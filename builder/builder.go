@@ -341,6 +341,15 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 	return channelProp, nil
 }
 
+func (b Builder)contains(s []string, v string) (bool) {
+	for _, sv := range s {
+		if sv == v {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *Builder)buildClips(channel *database.Channel) ([]*Clip, error) {
 	channelProp, err := b.makeChannelProperty(channel)
 	if err != nil {
@@ -351,6 +360,9 @@ func (b *Builder)buildClips(channel *database.Channel) ([]*Clip, error) {
 		for _, timeRange := range video.timeRanges {
 			authors := make([]string, 0, len(timeRange.comments))
 			for _, comment := range timeRange.comments {
+				if b.contains(authors, comment.author) {
+					continue
+				}
 				authors = append(authors, comment.author)
 			}
 			clip := &Clip {
@@ -416,20 +428,24 @@ func (b *Builder)Build() (error) {
 		if err != nil {
 			return errors.Wrapf(err, "can not marshal json (channelId = %v)", dbChannel.ChannelId)
 		}
-		newPageHash := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
-		if ok && lastChannelPage.PageHash == newPageHash {
-			log.Printf("skip because same page hash (oldPageHash = %v, newPageHash = %v", lastChannelPage.PageHash, newPageHash)
+		newChannelPageSha1Digest := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
+		if ok && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
+			log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
 			continue
 		}
-		pageJsonPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json")
-		// XXXX TODO deflate gzip
-		err = ioutil.WriteFile(pageJsonPath, clipsJsonBytes, 0644)
+		channelPageJsonPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json")
+		err = ioutil.WriteFile(channelPageJsonPath, clipsJsonBytes, 0644)
 		if err != nil {
-			return errors.Wrapf(err, "can not write json to file (channelId = %v, path = %v)", dbChannel.ChannelId, pageJsonPath)
+			return errors.Wrapf(err, "can not write json to file (channelId = %v, path = %v)", dbChannel.ChannelId, channelPageJsonPath)
 		}
-		err = b.databaseOperator.UpdatePageHashAndDirtyOfChannelPage(dbChannel.ChannelId, newPageHash, 1)
+		channelPageJsonSha1DigestPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json.sha1")
+		err = ioutil.WriteFile(channelPageJsonSha1DigestPath, []byte(newChannelPageSha1Digest), 0644)
+		if err != nil {
+			return errors.Wrapf(err, "can not write sha1 digest of json to file (channelId = %v, path = %v)", dbChannel.ChannelId, channelPageJsonSha1DigestPath)
+		}
+		err = b.databaseOperator.UpdateSha1DigestAndDirtyOfChannelPage(dbChannel.ChannelId, newChannelPageSha1Digest, 1)
                 if err != nil {
-                        return  errors.Wrapf(err, "can not update page hash and dirty of channelPage (channelId = %v, newPageHash = %v)", dbChannel.ChannelId, newPageHash)
+                        return  errors.Wrapf(err, "can not update sha1 digest and dirty of channelPage (channelId = %v, newChannelPageSha1Digest = %v)", dbChannel.ChannelId, newChannelPageSha1Digest)
                 }
 	}
 	return nil
