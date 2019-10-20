@@ -16,15 +16,33 @@
 <script type="text/javascript" src="js/axios.min.js" charset="utf-8"></script>
 </head>
 <body>
-<div id="app">
-<div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
-<div>default duration <input v-model.number="defaultDuration" type="number" placeholder="default duration" /></div>
-<div> {{ `{{ clipRecommenders }}` }} </div>
-<div> {{ `{{ clipVideoTitle }}` }} </div>
-<div id="player"></div>
-<div id="youtubePagelink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
-</div>
-<script type="text/javascript" src="js/vue.min.js" charset="utf-8"></script>
-<script type="text/javascript" src="js/clipper.js" charset="utf-8"></script>
+	<div id="app">
+		<div id="headerContent">
+			<div id="openSettingButton"><button class="customButton" v-on:click="openSetting">setting</button></div>
+			<hr/>
+		</div>
+		<div id="titleContent">
+			<div id="title">clipper</div>
+		</div>
+		<div id="settingModal" v-show="showSettingContent" v-on:click="closeSetting">
+			<div id="settingContent">
+				<div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
+				<div>default duration: <input v-model.number="defaultDuration" type="number" placeholder="default duration" /></div>
+				<div><button class="customButton" v-on:click="closeSetting">Close</button></div>
+			</div>
+		</div>
+		<div id="playerContent">
+			<div> {{ `{{ clipRecommenders }}` }} </div>
+			<div> {{ `{{ clipVideoTitle }}` }} </div>
+			<div id="player"></div>
+			<div id="youtubePagelink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
+			<div id="controllerContent">
+				<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">previous</button></span>
+				<span class="customPaddingLeft"><button class="customButton" v-on:click="playNextClip">next</button></span>
+			</div>
+		</div>
+	</div>
+	<script type="text/javascript" src="js/vue.min.js" charset="utf-8"></script>
+	<script type="text/javascript" src="js/clipper.js" charset="utf-8"></script>
 </body>
 </html>

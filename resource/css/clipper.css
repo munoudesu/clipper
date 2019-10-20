@@ -1,0 +1,78 @@
+body {
+	background: linear-gradient(to bottom, white, #808080);
+}
+
+#headerContent {
+	text-align: right;
+}
+
+#titleContent {
+	text-align: center;
+}
+
+#title {
+	font-family: 'Pacifico', cursive;
+	font-weight: bold;
+	font-style: italic;
+	font-size: 48px;
+	padding: 10px;
+}
+
+#settingModal{
+	z-index: 1;
+	position: fixed;
+	top:0;
+	left:0;
+	width:100%;
+	height:100%;
+	background-color:rgba(0,0,0,0.4);
+	display: -webkit-flex;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#settingContent{
+	z-index: 2;
+	width: 40%;
+	padding: 20px;
+	background: #f0f0f0;
+}
+
+#playerContent{
+	text-align: center;
+}
+
+#controllerContent{
+	text-align: center;
+}
+
+.customPaddingLeft {
+	padding: 5px 5px 5px 200px;
+}
+
+.customPaddingRight {
+	padding: 5px 200px 5px 5px;
+}
+
+button.customButton {
+	font-size: 1.0em;
+	font-weight: bold;
+	padding: 5px 5px;
+	background-color: #a0a0a0;
+	color: #ffffff;
+	border-style: none;
+	text-shadow: 1px 1px 2px #000;
+	box-shadow: 2px 2px 3px 1px #666;
+	-moz-box-shadow: 2px 2px 3px 1px #666;
+	-webkit-box-shadow: 2px 2px 3px 1px #666;
+	border-radius: 5px;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+}
+
+button.customButton:hover {
+	background-color: #c0c0c0;
+	color: #ffffff;
+}
+

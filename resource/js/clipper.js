@@ -7,23 +7,28 @@ var app = new Vue({
 		clipVideoTitle: "",
 		originUrl: "",
 		clips: null,
-		clipsIndex: 0,
+		clipsIndex: -1,
 		youtubePlayer: null,
-		lastYoutubePlayerStatus: -1
+		lastYoutubePlayerStatus: -1,
+		showSettingContent: false
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
 		let pagePropUrl = "json/" + this.channelId + ".json";
 		axios.get(pagePropUrl).then(res => {
 			this.clips = res.data;
-			console.log("0000000000");
 			this.youtubePlayerInit();
 		}).catch(res => {
-			console.log(res);
 			console.log("can not get page property");
 		});
 	},
 	methods: {
+		openSetting: function() {
+			this.showSettingContent = true;
+		},
+		closeSetting: function() {
+			this.showSettingContent = false;
+		},
 		fixClipDuration: function(clip, nextClip) {
 			if (clip.End == 0) {
 				clip.End = clip.Start + this.defaultDuration;
@@ -38,22 +43,35 @@ var app = new Vue({
 		makeOriginUrl: function(clip) {
 			return "https://youtu.be/" + clip.VideoId + "?t=" + clip.Start;
 		},
-		getNextClip: function() {
-			console.log("====");
+		incrementIndex: function() {
+			this.clipsIndex += 1;
+			if (this.clipsIndex >= this.clips.length) {
+				this.clipsIndex = 0;
+			}
+		},
+		decrementIndex: function() {
+			this.clipsIndex -= 1;
+			if (this.clipsIndex < 0) {
+				this.clipsIndex = this.clips.length -1;
+			}
+		},
+		getClip: function() {
 			let clip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex]));
 			let nextClip = null;
 			if (this.clipsIndex < this.clips.length - 1) {
 				nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
 			}
-			console.log(clip);
-			console.log(nextClip);
 			this.fixClipDuration(clip, nextClip);
-			this.clipsIndex += 1;
-			if (this.clipsIndex == this.clips.length) {
-				this.clipsIndex = 0;
-			}
 			console.log(clip);
 			return clip;
+		},
+		getNextClip: function() {
+			this.incrementIndex();
+			return this.getClip();
+		},
+		getPreviousClip: function() {
+			this.decrementIndex();
+			return this.getClip();
 		},
 		updateClipView: function(clip) {
 			this.originUrl = this.makeOriginUrl(clip);
@@ -68,7 +86,6 @@ var app = new Vue({
 			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 		},
 		youtubePlayerCreate: function() {
-			console.log("11111111111");
 			let clip = this.getNextClip();
 			this.updateClipView(clip)
 			this.youtubePlayer = new YT.Player('player', {
@@ -91,35 +108,45 @@ var app = new Vue({
 				endSeconds: clip.End
 			});
 		},
+		youtubePlayerLoadPrevious: function() {
+			clip = this.getPreviousClip();
+			this.updateClipView(clip)
+			this.youtubePlayer.loadVideoById({
+				videoId: clip.VideoId,
+				startSeconds: clip.Start,
+				endSeconds: clip.End
+			});
+		},
 		onYoutubePlayerReady: function(event) {
-				console.log(event);
 
 		},
 		onYoutubePlayerStateChange: function(event) {
-			console.log(event);
 			let st = event.target.getPlayerState();
 			if (this.lastYoutubePlayerStatus == YT.PlayerState.PLAYING && st == YT.PlayerState.ENDED) {
-				console.log("xxxxxx");
 				this.youtubePlayerLoadNext();
 			}
 			this.lastYoutubePlayerStatus = event.target.getPlayerState();
 		},
 		onYoutubePlayerPlaybackQualityChange: function(event) {
-				console.log(event);
 
 		},
 		onYoutubePlayerError: function(event) {
-			console.log(event);
 			let error = event.data;
 			if (error >= 100) {
-				console.log("yyyyyyy");
 				this.youtubePlayerLoadNext();
 			}
+		},
+		playPreviousClip: function() {
+			this.youtubePlayer.stopVideo();
+			this.youtubePlayerLoadPrevious()
+		},
+		playNextClip: function() {
+			this.youtubePlayer.stopVideo();
+			this.youtubePlayerLoadNext()
 		}
 	}
 });
 
 function onYouTubeIframeAPIReady() {
-	console.log("zzzzzzzzzzz");
 	app.youtubePlayerCreate();
 }
