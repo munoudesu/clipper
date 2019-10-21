@@ -8,7 +8,8 @@ import (
 )
 
 type handler struct {
-        cacher *cacher
+        cacher  *cacher
+	verbose bool
 }
 
 func (h *handler) getCacheFileResponse(c *gin.Context, cacheFilePath string, cacheFileData []byte, contentType string, ok bool) {
@@ -36,10 +37,10 @@ func (h *handler) getCacheFile(c *gin.Context) {
 	}
 }
 
-func newHandler(cacher *cacher) (*handler){
+func newHandler(cacher *cacher, verbose bool) (*handler){
 	return &handler{
 	    cacher: cacher,
+	    verbose: verbose,
 	}
 }
-
 

@@ -29,9 +29,11 @@ type cacher struct {
 	filesCache                  map[string]*fileCache
 	cacheLoopFinishResquestChan chan int
 	cacheLoopFinishResponseChan chan int
+	verbose                     bool
 }
 
-func (c *cacher) getGzipData(dataFilePath string) ([]byte, string, bool) {
+func (c *cacher) getGzipData(urlDataFilePath string) ([]byte, string, bool) {
+	dataFilePath := filepath.Join(c.cacheDirPath, urlDataFilePath)
 	fileCache, ok := c.getFileCache(dataFilePath)
 	if !ok {
 		return nil, "", false
@@ -39,7 +41,8 @@ func (c *cacher) getGzipData(dataFilePath string) ([]byte, string, bool) {
 	return fileCache.gzipData, fileCache.mineType, ok
 }
 
-func (c *cacher) getRawData(dataFilePath string) ([]byte, string, bool) {
+func (c *cacher) getRawData(urlDataFilePath string) ([]byte, string, bool) {
+	dataFilePath := filepath.Join(c.cacheDirPath, urlDataFilePath)
 	fileCache, ok := c.getFileCache(dataFilePath)
 	if !ok {
 		return nil, "", false
@@ -51,12 +54,18 @@ func (c *cacher) getFileCache(dataFilePath string) (*fileCache, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	fileCache, ok := c.filesCache[dataFilePath]
+	if c.verbose && !ok {
+		log.Printf("not found file cache (%v)", dataFilePath)
+	}
 	return fileCache, ok
 }
 
 func (c *cacher) setFileCache(dataFilePath string, newFileCache *fileCache) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	if c.verbose {
+		log.Printf("set file cache (%v)", dataFilePath)
+	}
 	c.filesCache[dataFilePath] = newFileCache
 }
 
@@ -101,6 +110,9 @@ func (c *cacher) updateMain(dataFilePath string, digestFilePath string, dataFile
 		return nil
 	}
 	if findFileCache.digestFilModTime == digestFile.ModTime() && findFileCache.dataFilModTime == dataFile.ModTime() {
+		if c.verbose {
+			log.Printf("not changed modified timestamp (data file = %v, digest file = %v)", dataFilePath, digestFilePath)
+		}
 		return nil
 	}
 	newSha1Digest, err := ioutil.ReadFile(digestFilePath)
@@ -108,6 +120,9 @@ func (c *cacher) updateMain(dataFilePath string, digestFilePath string, dataFile
 		return errors.Wrapf(err, "can not read digest file (%v)", digestFilePath)
 	}
 	if bytes.Compare(findFileCache.sha1Digest, newSha1Digest) == 0 {
+		if c.verbose {
+			log.Printf("not changed digest (data file = %v, digest file = %v)", dataFilePath, digestFilePath)
+		}
 		return nil
 	}
 	newRawData, err := ioutil.ReadFile(dataFilePath)
@@ -142,7 +157,9 @@ func (c *cacher) dirWalk(dir string) (error) {
 		if findFile.IsDir() {
 			err := c.dirWalk(findFilePath)
 			if err != nil {
-				log.Printf("can not walk directory (dir = %v): %v", dir, err)
+				if c.verbose {
+					log.Printf("can not walk directory (dir = %v): %v", dir, err)
+				}
 			}
 			continue
 		}
@@ -151,21 +168,27 @@ func (c *cacher) dirWalk(dir string) (error) {
 			dataFilePath := strings.TrimSuffix(findFilePath, ext)
 			dataFile, err := os.Stat(dataFilePath)
 			if err != nil {
-				log.Printf("skip cache, not found data file (data file = %v, digest file = %v): %v", dataFilePath, findFilePath, err)
+				if c.verbose {
+					log.Printf("skip cache, not found data file (data file = %v, digest file = %v): %v", dataFilePath, findFilePath, err)
+				}
 				continue
 			}
 			err = c.updateMain(dataFilePath, findFilePath, dataFile, findFile)
 			if err != nil {
-				log.Printf("skip cache, can not update cache (data file = %v, digest file = %v): %v", dataFilePath, findFilePath, err)
+				if c.verbose {
+					log.Printf("skip cache, can not update cache (data file = %v, digest file = %v): %v", dataFilePath, findFilePath, err)
+				}
 				continue
 			}
 		}
-		continue
 	}
 	return nil
 }
 
 func (c *cacher) cacheMain() {
+	if c.verbose {
+		log.Printf("cache process start (cache dir = %v)", c.cacheDirPath)
+	}
 	err := c.dirWalk(c.cacheDirPath)
 	if err != nil {
 		log.Printf("can not walk directory (cache dir = %v): %v", c.cacheDirPath, err)
@@ -195,13 +218,14 @@ func (c *cacher) stop() {
         <-c.cacheLoopFinishResponseChan
 }
 
-func newCacher(cacheDirPath string) (*cacher) {
+func newCacher(cacheDirPath string, verbose bool) (*cacher) {
         return &cacher {
 		cacheDirPath: cacheDirPath,
                 mutex: new(sync.Mutex),
                 filesCache: make(map[string]*fileCache),
                 cacheLoopFinishResquestChan: make(chan int),
                 cacheLoopFinishResponseChan: make(chan int),
+		verbose: verbose,
         }
 }
 

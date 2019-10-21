@@ -157,7 +157,7 @@ func signalWait() {
 }
 
 func web(conf *clipperConfig, cmdArgs *commandArguments) {
-	server := server.NewServer(conf.Web.AddrPort, conf.Web.TlsCertPath, conf.Web.TlsKeyPath, conf.Web.RootDirPath, conf.Web.CacheDirPath)
+	server := server.NewServer(conf.Web.AddrPort, conf.Web.TlsCertPath, conf.Web.TlsKeyPath, conf.Web.RootDirPath, conf.Web.CacheDirPath, cmdArgs.verbose)
 	server.Start()
 	signalWait()
 	server.Stop()

@@ -18,6 +18,7 @@ type server struct {
         server       *http.Server
         router       *gin.Engine
 	handler      *handler
+	verbose      bool
 }
 
 func (s *server) Start() {
@@ -40,9 +41,9 @@ func (s *server) Stop() {
 	s.cacher.stop()
 }
 
-func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPath string, cacheDirPath string) (*server) {
-        cacher := newCacher(cacheDirPath)
-        handler := newHandler(cacher)
+func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPath string, cacheDirPath string, verbose bool) (*server) {
+        cacher := newCacher(cacheDirPath, verbose)
+        handler := newHandler(cacher, verbose)
         router := gin.Default()
         router.Static("/root", rootDirPath)
         jsonRouter := router.Group("/cache")
@@ -62,6 +63,7 @@ func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPa
 		server: s,
 		router: router,
 		handler: handler,
+		verbose: verbose,
         }
 }
 

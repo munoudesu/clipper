@@ -2,8 +2,8 @@ var app = new Vue({
 	el:"#app",
 	data:{
 		settings: {
-			defaultDuration: 100
 		},
+		defaultDuration: 180,
 		channelId: "",
 		clipRecommenders: "",
 		clipVideoTitle: "",
@@ -17,7 +17,7 @@ var app = new Vue({
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
-		let pagePropUrl = "cache/" + this.channelId + ".json";
+		let pagePropUrl = "../cache/" + this.channelId + ".json";
 		axios.get(pagePropUrl).then(res => {
 			this.clips = res.data;
 			this.loadSetting();
@@ -31,16 +31,32 @@ var app = new Vue({
 			if (localStorage.getItem('settings')) {
 				try {
 					this.settings = JSON.parse(localStorage.getItem('settings'));
+					if (this.settings[this.channelId])  {
+						this.defaultDuration = this.settings[this.channelId].defaultDuration;
+					} else {
+						this.settings[this.channelId] = {
+							defaultDuration: this.defaultDuration
+						}
+					}
 				} catch(e) {
 					localStorage.removeItem('settings');
+
 				}
-			} 
+			}
+			console.log(this.settings);
 		},
 		saveSetting: function() {
+			if (this.settings[this.channelId]) {
+				this.settings[this.channelId].defaultDuration = this.defaultDuration;
+			} else {
+				this.settings[this.channelId] = {
+					defaultDuration: this.defaultDuration
+				}
+			}
+			console.log(this.settings);
 			localStorage.setItem('settings', JSON.stringify(this.settings));
 		},
 		openSetting: function() {
-			this.loadSetting();
 			this.showSettingContent = true;
 		},
 		closeSetting: function() {
@@ -55,7 +71,7 @@ var app = new Vue({
 		},
 		fixClipDuration: function(clip, nextClip) {
 			if (clip.End == 0) {
-				clip.End = clip.Start + this.settings.defaultDuration;
+				clip.End = clip.Start + this.settings[this.channelId].defaultDuration;
 			}
 			if (nextClip != null && clip.VideoId == nextClip.VideoId) {
 				if (clip.End > nextClip.Start) {
