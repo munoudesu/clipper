@@ -18,6 +18,11 @@ install -o root -g root -m 644 -D resource/root/js/axios.min.map $INSTALLDIR/sou
 install -o root -g root -m 644 -D resource/root/js/clipper.js    $INSTALLDIR/source/resource/root/js/clipper.js
 install -o root -g root -m 644 -D resource/root/js/vue.min.js    $INSTALLDIR/source/resource/root/js/vue.min.js
 install -o root -g root -m 644 -D clipper.conf                   $INSTALLDIR/etc/clipper.conf
+install -o root -g root -m 644 -D clipper.service                $INSTALLDIR/etc/systemd/clipper.service
+ln -s $INSTALLDIR/etc/systemd/clipper.service /etc/systemd/system/clipper.service
+mkdir -p $INSTALLDIR/etc/default
+chmod 755 $INSTALLDIR/etc/default
+chown root:root $INSTALLDIR/etc/default
 mkdir -p $INSTALLDIR/db
 chmod 755 $INSTALLDIR/db
 chown root:root $INSTALLDIR/db

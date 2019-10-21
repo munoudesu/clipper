@@ -1,0 +1,19 @@
+[Unit]
+Description=clipper web server
+After=syslog.target network.target
+ConditionPathIsDirectory=/usr/local/clipper/build/root
+ConditionPathIsDirectory=/usr/local/clipper/build/cache
+
+[Service]
+EnvironmentFile=-/usr/local/clipper/etc/default/clipper
+ExecStart=/usr/local/clipper/bin/clipper -runMode=web
+KillMode=process
+Restart=on-failure
+RestartPreventExitStatus=255
+Type=simple
+RuntimeDirectory=clipper
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target
+Alias=clipper.service

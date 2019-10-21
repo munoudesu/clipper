@@ -17,7 +17,7 @@ var app = new Vue({
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
-		let pagePropUrl = "../cache/" + this.channelId + ".json";
+		let pagePropUrl = "../cache/" + this.channelId + ".json?_=" + Date.now();
 		axios.get(pagePropUrl).then(res => {
 			this.clips = res.data;
 			this.loadSetting();
