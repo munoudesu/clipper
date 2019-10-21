@@ -1,1 +1,1 @@
-0 5 * * * root /usr/local/clipper/bin/clipper
+0 5 * * * root /usr/local/clipper/bin/clipper -verbose=true

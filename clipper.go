@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"log"
+	"log/syslog"
 	"flag"
 	"syscall"
 	"os/signal"
@@ -46,6 +47,10 @@ type clipperWebConfig struct {
 	Release      bool   `toml:"release"`
 }
 
+type clipperLogConfig struct {
+	UseSyslog bool `toml:"useSyslog"`
+}
+
 type clipperIpfsConfig struct {
 	AddrPort string `toml:"addrPort"`
 }
@@ -56,6 +61,7 @@ type clipperConfig struct {
 	Database *clipperDatabaseConfig `toml:"database"`
 	Builder  *clipperBuilderConfig  `toml:"builder"`
 	Web      *clipperWebConfig      `toml:"web"`
+	Log      *clipperLogConfig      `toml:"log"`
 	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
 }
 
@@ -186,6 +192,14 @@ func main() {
 	if err != nil {
 		log.Printf("can not load config: %v", err)
 		os.Exit(1)
+	}
+	if conf.Log.UseSyslog {
+		logger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "clipper")
+		if err != nil {
+			log.Printf("can not create syslog: %v", err)
+			os.Exit(1)
+		}
+		log.SetOutput(logger)
 	}
 	verboseLoadedConfig(cmdArgs.verbose, conf)
 	if cmdArgs.runMode == "crawl" {

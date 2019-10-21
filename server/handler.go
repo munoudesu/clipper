@@ -20,9 +20,18 @@ func (h *handler) getCacheFileResponse(c *gin.Context, cacheFilePath string, cac
 	c.Data(http.StatusOK, contentType, cacheFileData)
 }
 
+func (h *handler) containsGzip(acceptEncoding string) (bool) {
+	for _, s:= range strings.Split(acceptEncoding, ",") {
+		if "gzip" == strings.TrimSpace(s) {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *handler) getCacheFile(c *gin.Context) {
 	acceptEncoding := c.GetHeader("Accept-Encoding")
-	gzipOK := strings.Contains(acceptEncoding, "gzip")
+	gzipOK := h.containsGzip(acceptEncoding)
 	cacheFilePath := c.Param("cacheFilePath")
 	if cacheFilePath == "" {
 		c.JSON(http.StatusNotFound, gin.H{ "error": fmt.Sprintf("not found %v", cacheFilePath) })
