@@ -43,6 +43,7 @@ type clipperWebConfig struct {
 	TlsKeyPath   string `toml:"tlsKeyPath"`
 	RootDirPath  string `toml:"rootDirPath"`
 	CacheDirPath string `toml:"cacheDirPath"`
+	Release      bool   `toml:"release"`
 }
 
 type clipperIpfsConfig struct {
@@ -157,7 +158,7 @@ func signalWait() {
 }
 
 func web(conf *clipperConfig, cmdArgs *commandArguments) {
-	server := server.NewServer(conf.Web.AddrPort, conf.Web.TlsCertPath, conf.Web.TlsKeyPath, conf.Web.RootDirPath, conf.Web.CacheDirPath, cmdArgs.verbose)
+	server := server.NewServer(conf.Web.AddrPort, conf.Web.TlsCertPath, conf.Web.TlsKeyPath, conf.Web.RootDirPath, conf.Web.CacheDirPath, conf.Web.Release, cmdArgs.verbose)
 	server.Start()
 	signalWait()
 	server.Stop()
@@ -165,7 +166,7 @@ func web(conf *clipperConfig, cmdArgs *commandArguments) {
 
 func main() {
 	cmdArgs := new(commandArguments)
-	flag.StringVar(&cmdArgs.configFile, "config", "clipper.conf", "config file")
+	flag.StringVar(&cmdArgs.configFile, "config", "/usr/local/clipper/etc/clipper.conf", "config file")
 	flag.BoolVar(&cmdArgs.verbose, "verbose", false, "verbose")
 	flag.BoolVar(&cmdArgs.searchChannel, "searchChannel", true, "search channel")
 	flag.BoolVar(&cmdArgs.searchVideo, "searchVideo", true, "search video")

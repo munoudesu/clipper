@@ -15,6 +15,7 @@ type server struct {
         tlsKeyPath   string
 	rootDirPath  string
 	cacheDirPath string
+	release      bool
         server       *http.Server
         router       *gin.Engine
 	handler      *handler
@@ -41,7 +42,10 @@ func (s *server) Stop() {
 	s.cacher.stop()
 }
 
-func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPath string, cacheDirPath string, verbose bool) (*server) {
+func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPath string, cacheDirPath string, release bool, verbose bool) (*server) {
+	if release {
+		gin.SetMode(gin.ReleaseMode)
+	}
         cacher := newCacher(cacheDirPath, verbose)
         handler := newHandler(cacher, verbose)
         router := gin.Default()
@@ -60,6 +64,7 @@ func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPa
 		tlsKeyPath: tlsKeyPath,
 		rootDirPath: rootDirPath,
 		cacheDirPath: cacheDirPath,
+		release: release,
 		server: s,
 		router: router,
 		handler: handler,
