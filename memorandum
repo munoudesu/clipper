@@ -1,0 +1,48 @@
+ubuntu install
+--------------
+sudo apt update
+sudo apt upgrade
+sudo snap install --classic go
+sudo apt install sqlite3
+sudo apt install gcc
+sudo apt install make
+sudo apt install certbot
+sudo ufw allow ssh
+sudo ufw allow https
+sudo ufw enable
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+mkdir go
+export GOPATH="$HOME/go"
+sudo vi /etc/profile.d/go.sh
+> export GOPATH="$HOME/go"
+> if [ -d "$HOME/go/bin" ]; then
+>         PATH="$HOME/go/bin:$PATH"
+> fi
+source /etc/profile.d/go.sh
+go get github.com/munoudesu/clipper
+mkdir download
+cd download
+wget http://www.no-ip.com/client/linux/noip-duc-linux.tar.gz
+tar zxvf noip-duc-linux.tar.gz
+cd noip-2.1.9-1
+make
+sudo make install
+sudo cp  debian.noip2.sh /etc/init.d/noip2.sh
+sudo chmod 755 /etc/init.d/noip2.sh
+sudo update-rc.d noip2.sh defaults
+sudo service noip2.sh start
+cd ~/
+sudo certbot certonly --standalone --non-interactive --agree-tos --keep --email <yout_email> --domains <your_domain>
+cd go/src/github.com/munoudesu/clipper
+chmod 755 install.sh
+sudo ./install.sh
+sudo vi /usr/local/clipper/etc/clipper.conf
+sudo vi /usr/local/clipper/etc/youtube_data_api_key_file
+sudo vi /usr/local/clipper/etc/twitter_api_key_file
+sudo systemctl daemon-reload
+sudo systemctl start clipper.service
+sudo vi /etc/cron.d/certbot
+> 0 */12 * * * root test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(43200))' && certbot -q renew --post-hook "service clipper restart"
