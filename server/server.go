@@ -4,14 +4,8 @@ import (
         "log"
         "context"
         "time"
-        "path"
-        "path/filepath"
         "net/http"
-        "github.com/pkg/errors"
-        "github.com/gin-contrib/sessions"
-        "github.com/gin-contrib/sessions/cookie"
         "github.com/gin-gonic/gin"
-        "github.com/potix/ensemble/common/db"
 )
 
 type server struct {
@@ -20,46 +14,39 @@ type server struct {
         tlsCertPath  string
         tlsKeyPath   string
 	rootDirPath  string
-	cacheDir     string
+	cacheDirPath string
         server       *http.Server
         router       *gin.Engine
-	hander       *handler
+	handler      *handler
 }
 
-func (s *server) start() {
-	s.cacher.Start()
+func (s *server) Start() {
+	s.cacher.start()
         go func() {
-                err := s.server.ListenAndServeTLS(s.tlsCert, s.tlsKey);
+                err := s.server.ListenAndServeTLS(s.tlsCertPath, s.tlsKeyPath);
                 if err != nil && err != http.ErrServerClosed {
                         log.Fatalf("listen: %v", err)
                 }
         }()
 }
 
-func (s *server) stop() {
+func (s *server) Stop() {
         ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
         defer cancel()
         err := s.server.Shutdown(ctx)
         if err != nil {
             log.Printf("Server Shutdown: %v", err)
         }
-	s.cacher.Stop()
+	s.cacher.stop()
 }
 
-func newServer(conf *config, addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPath string, cacheDir string) (*server, error) {
-	cacheDirPath := filePath.Join(rootDirPath, cacheDirPath)
-        cacher, err := newCacher(cacheDirPath)
-        if err != nil {
-                return nil, errors.Wrap(err, "can not create cacher")
-        }
-        handler, err := newHandler(cacher)
-        if err != nil {
-                return nil, errors.Wrap(err, "can not create handler")
-        }
+func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPath string, cacheDirPath string) (*server) {
+        cacher := newCacher(cacheDirPath)
+        handler := newHandler(cacher)
         router := gin.Default()
-        router.Static("/", buildDirPath)
-        jsonRouter := router.Group(path.Join("/", cacheDirPath))
-        jsonRouter.GET("/:cacheFilePath", handler.getJson)
+        router.Static("/root", rootDirPath)
+        jsonRouter := router.Group("/cache")
+        jsonRouter.GET("/:cacheFilePath", handler.getCacheFile)
         s := &http.Server{
             Addr: addrPort,
             Handler: router,
@@ -71,10 +58,10 @@ func newServer(conf *config, addrPort string, tlsCertPath string, tlsKeyPath str
 		tlsCertPath: tlsCertPath,
 		tlsKeyPath: tlsKeyPath,
 		rootDirPath: rootDirPath,
-		cacheDir: cacheDir,
+		cacheDirPath: cacheDirPath,
 		server: s,
 		router: router,
 		handler: handler,
-        }, nil
+        }
 }
 

@@ -145,10 +145,12 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 					log.Printf("skipped because commentThread resource is not modified (commentThreadIdId = %v, responseEtag = %v)", commentThread.CommentThreadId, commentThread.ResponseEtag)
 					continue
 				}
+/*
 				if commentThread.Etag == newCommentThread.Etag {
 					log.Printf("skipped because commentThread resource have same etag (commentThreadIdId = %v, oldEtag = %v, newEtag = %v)", newCommentThread.CommentThreadId, commentThread.Etag, newCommentThread.Etag)
 					continue
 				}
+*/
 				err = s.databaseOperator.UpdateCommentThread(newCommentThread)
 				if err != nil {
 					return errors.Wrapf(err, "can not update commentThread (commentThreadId = %v)", newCommentThread.CommentThreadId)

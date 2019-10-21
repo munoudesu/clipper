@@ -60,9 +60,8 @@ type Builder struct {
 	sourceDirPath         string
 	resourceDirPath       string
 	templateDirPath       string
-	buildDirPath          string
-	buildJsDirPath        string
-	buildJsonDirPath      string
+	buildRootDirPath      string
+	buildCacheDirPath     string
 	channels              youtubedataapi.Channels
 	databaseOperator      *database.DatabaseOperator
 	timeRangeRegexp       *regexp.Regexp
@@ -391,7 +390,7 @@ func (b *Builder)Build() (error) {
 		dbChannels = append(dbChannels, dbChannel)
 	}
 	// create index.html
-	indexHtmlPath := filepath.Join(b.buildDirPath, "index.html")
+	indexHtmlPath := filepath.Join(b.buildRootDirPath, "index.html")
 	indexHtmlFile, err := os.OpenFile(indexHtmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtmlPath)
@@ -403,7 +402,7 @@ func (b *Builder)Build() (error) {
 	}
 	// create channel page
 	for _, dbChannel := range dbChannels {
-		pageHtmlPath := filepath.Join(b.buildDirPath, dbChannel.ChannelId + ".html")
+		pageHtmlPath := filepath.Join(b.buildRootDirPath, dbChannel.ChannelId + ".html")
 		pageHtmlFile, err := os.OpenFile(pageHtmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			return errors.Wrapf(err, "can not open page html file (path = %v)", pageHtmlPath)
@@ -433,12 +432,12 @@ func (b *Builder)Build() (error) {
 			log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
 			continue
 		}
-		channelPageJsonPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json")
+		channelPageJsonPath := filepath.Join(b.buildCacheDirPath, dbChannel.ChannelId + ".json")
 		err = ioutil.WriteFile(channelPageJsonPath, clipsJsonBytes, 0644)
 		if err != nil {
 			return errors.Wrapf(err, "can not write json to file (channelId = %v, path = %v)", dbChannel.ChannelId, channelPageJsonPath)
 		}
-		channelPageJsonSha1DigestPath := filepath.Join(b.buildJsonDirPath, dbChannel.ChannelId + ".json.sha1")
+		channelPageJsonSha1DigestPath := filepath.Join(b.buildCacheDirPath, dbChannel.ChannelId + ".json.sha1")
 		err = ioutil.WriteFile(channelPageJsonSha1DigestPath, []byte(newChannelPageSha1Digest), 0644)
 		if err != nil {
 			return errors.Wrapf(err, "can not write sha1 digest of json to file (channelId = %v, path = %v)", dbChannel.ChannelId, channelPageJsonSha1DigestPath)
@@ -492,20 +491,20 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not parse templates (template pattern = %v)", templatePattern)
 	}
-        buildJsDirPath := filepath.Join(buildDirPath, "js")
-         _, err = os.Stat(buildJsDirPath)
+        buildRootDirPath := filepath.Join(buildDirPath, "root")
+         _, err = os.Stat(buildRootDirPath)
 	if err != nil {
-                err := os.MkdirAll(buildJsDirPath, 0755)
+                err := os.MkdirAll(buildRootDirPath, 0755)
                 if err != nil {
-                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildJsDirPath)
+                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildRootDirPath)
                 }
         }
-        buildJsonDirPath := filepath.Join(buildDirPath, "json")
-         _, err = os.Stat(buildJsonDirPath)
+        buildCacheDirPath := filepath.Join(buildDirPath, "cache")
+         _, err = os.Stat(buildCacheDirPath)
 	if err != nil {
-                err := os.MkdirAll(buildJsonDirPath, 0755)
+                err := os.MkdirAll(buildCacheDirPath, 0755)
                 if err != nil {
-                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildJsonDirPath)
+                        return nil, errors.Wrapf(err, "can not create directory (%v)", buildCacheDirPath)
                 }
         }
 	err = copytool.Copy(resourceDirPath, buildDirPath)
@@ -516,9 +515,8 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 		sourceDirPath: sourceDirPath,
 		resourceDirPath: resourceDirPath,
 		templateDirPath: templateDirPath,
-		buildDirPath: buildDirPath,
-		buildJsDirPath: buildJsDirPath,
-		buildJsonDirPath: buildJsonDirPath,
+		buildRootDirPath: buildRootDirPath,
+		buildCacheDirPath: buildCacheDirPath,
 		channels: channels,
 		databaseOperator: databaseOperator,
 		timeRangeRegexp: timeRangeRegexp,

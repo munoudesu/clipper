@@ -2,7 +2,7 @@ var app = new Vue({
 	el:"#app",
 	data:{
 		settings: {
-			defaultDuration: 90
+			defaultDuration: 100
 		},
 		channelId: "",
 		clipRecommenders: "",
@@ -17,7 +17,7 @@ var app = new Vue({
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
-		let pagePropUrl = "json/" + this.channelId + ".json";
+		let pagePropUrl = "cache/" + this.channelId + ".json";
 		axios.get(pagePropUrl).then(res => {
 			this.clips = res.data;
 			this.loadSetting();
@@ -112,9 +112,18 @@ var app = new Vue({
 		youtubePlayerCreate: function() {
 			let clip = this.getNextClip();
 			this.updateClipView(clip)
+			console.log("create");
 			this.youtubePlayer = new YT.Player('player', {
 				videoId: clip.VideoId,
-				playerVars: { 'autoplay': 1, 'controls': 1, 'start': clip.Start, 'end': clip.End },
+				host: 'https://www.youtube.com',
+				playerVars: {
+					'autoplay': 1,
+					'controls': 1,
+					'start': clip.Start,
+					'end': clip.End,
+					'enablejsapi ': 1,
+					'origin': location.protocol + '//' + location.hostname + "/"
+				},
 				events: {
 					'onReady': this.onYoutubePlayerReady,
 					'onStateChange': this.onYoutubePlayerStateChange,
@@ -142,17 +151,20 @@ var app = new Vue({
 			});
 		},
 		onYoutubePlayerReady: function(event) {
-
 		},
 		onYoutubePlayerStateChange: function(event) {
 			let st = event.target.getPlayerState();
 			if (this.lastYoutubePlayerStatus == YT.PlayerState.PLAYING && st == YT.PlayerState.ENDED) {
 				this.youtubePlayerLoadNext();
+			} else if (st == YT.PlayerState.ENDED) {
+				let clip = this.getClip();
+				if (this.youtubePlayer.getDuration() >= clip.Start) {
+					this.youtubePlayerLoadNext();
+				}
 			}
 			this.lastYoutubePlayerStatus = event.target.getPlayerState();
 		},
 		onYoutubePlayerPlaybackQualityChange: function(event) {
-
 		},
 		onYoutubePlayerError: function(event) {
 			let error = event.data;

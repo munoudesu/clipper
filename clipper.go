@@ -4,12 +4,15 @@ import (
 	"os"
 	"log"
 	"flag"
+	"syscall"
+	"os/signal"
 	"encoding/json"
 	"github.com/munoudesu/clipper/configurator"
 	"github.com/munoudesu/clipper/youtubedataapi"
 	"github.com/munoudesu/clipper/twitterapi"
 	"github.com/munoudesu/clipper/database"
 	"github.com/munoudesu/clipper/builder"
+	"github.com/munoudesu/clipper/server"
 )
 
 type clipperYoutubeConfig struct {
@@ -38,8 +41,8 @@ type clipperWebConfig struct {
 	AddrPort     string `toml:"addrPort"`
 	TlsCertPath  string `toml:"tlsCertPath"`
 	TlsKeyPath   string `toml:"tlsKeyPath"`
-	RootdirPath  string `toml:"rootDirPath"`
-	CacheDir     string `toml:"cacheDir"`
+	RootDirPath  string `toml:"rootDirPath"`
+	CacheDirPath string `toml:"cacheDirPath"`
 }
 
 type clipperIpfsConfig struct {
@@ -51,6 +54,7 @@ type clipperConfig struct {
 	Twitter  *clipperTwitterConfig  `toml:"twitter"`
 	Database *clipperDatabaseConfig `toml:"database"`
 	Builder  *clipperBuilderConfig  `toml:"builder"`
+	Web      *clipperWebConfig      `toml:"web"`
 	Ipfs     *clipperIpfsConfig     `toml:"ipfs"`
 }
 
@@ -130,8 +134,32 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 	log.Printf("%v",twitterApiKeyPair)
 }
 
-func web(conf *clipperConfig, cmdArgs *commandArguments) {
+func signalWait() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan,
+		syscall.SIGINT,
+		syscall.SIGQUIT,
+		syscall.SIGTERM)
+	for {
+		sig := <-sigChan
+		switch sig {
+		case syscall.SIGINT:
+			fallthrough
+		case syscall.SIGQUIT:
+			fallthrough
+		case syscall.SIGTERM:
+			return
+		default:
+			log.Printf("unexpected signal (sig = %v)", sig)
+		}
+	}
+}
 
+func web(conf *clipperConfig, cmdArgs *commandArguments) {
+	server := server.NewServer(conf.Web.AddrPort, conf.Web.TlsCertPath, conf.Web.TlsKeyPath, conf.Web.RootDirPath, conf.Web.CacheDirPath)
+	server.Start()
+	signalWait()
+	server.Stop()
 }
 
 func main() {

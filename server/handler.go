@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"strings"
-	"path/filePath"
 	"net/http"
 	"github.com/gin-gonic/gin"
 )
@@ -28,18 +27,18 @@ func (h *handler) getCacheFile(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{ "error": fmt.Sprintf("not found %v", cacheFilePath) })
 	}
 	if gzipOK {
-		cacheFileData, ok := cacher.getGzip(cacheFilePath)
+		cacheFileData, contentType, ok := h.cacher.getGzipData(cacheFilePath)
 		c.Header("Content-Encoding", "gzip")
-		this.getCacheFileResponse(c, cacheFilePath, cacheFileData, contentType, ok)
+		h.getCacheFileResponse(c, cacheFilePath, cacheFileData, contentType, ok)
 	} else {
-		cacheFileDataData, ok := cacher.getRaw(cacheFilePath)
-		this.getCacheFileResponse(c, cacheFilePath, cacheFileData, contentType, ok)
+		cacheFileData, contentType, ok := h.cacher.getRawData(cacheFilePath)
+		h.getCacheFileResponse(c, cacheFilePath, cacheFileData, contentType, ok)
 	}
 }
 
 func newHandler(cacher *cacher) (*handler){
 	return &handler{
-	    cacher: *cacher,
+	    cacher: cacher,
 	}
 }
 
