@@ -23,8 +23,10 @@ type clipperYoutubeConfig struct {
 }
 
 type clipperTwitterConfig struct {
-	ApiKeyFile string      `toml:"apiKeyFile"`
-	Users twitterapi.Users `toml:"users"`
+	ApiKeyFile    string           `toml:"apiKeyFile"`
+	TweetLinkRoot string           `toml:"tweetLinkRoot"`
+	TweetComment  string           `toml:"tweetComment"`
+	Users         twitterapi.Users `toml:"users"`
 }
 
 type clipperDatabaseConfig struct {
@@ -78,6 +80,7 @@ type commandArguments struct {
 	skipBuild            bool
 	skipNotify           bool
 	rebuild              bool
+	renotify             bool
 	runMode              string
 }
 
@@ -99,7 +102,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 		log.Printf("can not load api key of youtube: %v", err)
 		os.Exit(1)
 	}
-	twitterApiKeyPair, err := twitterapi.LoadApiKey(conf.Twitter.ApiKeyFile)
+	twitterApiKeyAccessToken, err := twitterapi.LoadApiKey(conf.Twitter.ApiKeyFile)
 	if err != nil {
 		log.Printf("can not load api key pair of twitter: %v", err)
 		os.Exit(1)
@@ -139,7 +142,14 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 			os.Exit(1)
 		}
 	}
-	log.Printf("%v",twitterApiKeyPair)
+	if !cmdArgs.skipNotify {
+		notifier := twitterapi.NewNotifier(twitterApiKeyAccessToken, conf.Twitter.TweetLinkRoot, conf.Twitter.TweetComment, conf.Youtube.Channels, conf.Twitter.Users, databaseOperator, cmdArgs.verbose)
+		err := notifier.Notify(cmdArgs.renotify)
+		if err != nil {
+			log.Printf("can not notigy: %v", err)
+			os.Exit(1)
+		}
+	}
 }
 
 func signalWait() {
@@ -184,6 +194,7 @@ func main() {
 	flag.BoolVar(&cmdArgs.skipBuild, "skipBuild", false, "skip build")
 	flag.BoolVar(&cmdArgs.skipNotify, "skipNotify", false, "skip Notify")
 	flag.BoolVar(&cmdArgs.rebuild, "rebuild", false, "force rebuild")
+	flag.BoolVar(&cmdArgs.renotify, "renotify", false, "force renotify")
 	flag.StringVar(&cmdArgs.runMode, "runMode", "crawl", "run mode crawl or web")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(cmdArgs.configFile)
@@ -206,5 +217,8 @@ func main() {
 		crawl(conf, cmdArgs)
 	} else if cmdArgs.runMode == "web" {
 		web(conf, cmdArgs)
+	} else {
+		log.Printf("unexpected run mode %v", cmdArgs.runMode)
+		os.Exit(1)
 	}
 }
