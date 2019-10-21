@@ -75,7 +75,7 @@ div.modal {
 
 div.modalContent {
 	z-index: 3000;
-	width: 60%;
+	width: 50%;
 	padding: 20px;
 	background: #f0f0f0;
 }
