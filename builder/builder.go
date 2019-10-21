@@ -377,7 +377,7 @@ func (b *Builder)buildClips(channel *database.Channel) ([]*Clip, error) {
 	return clips, nil
 }
 
-func (b *Builder)Build() (error) {
+func (b *Builder)Build(rebuild bool) (error) {
 	dbChannels := make([]*database.Channel, 0)
 	for _, channel := range b.channels {
 		dbChannel, ok, err := b.databaseOperator.GetChannelByChannelId(channel.ChannelId)
@@ -428,7 +428,7 @@ func (b *Builder)Build() (error) {
 			return errors.Wrapf(err, "can not marshal json (channelId = %v)", dbChannel.ChannelId)
 		}
 		newChannelPageSha1Digest := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
-		if ok && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
+		if !rebuild && ok && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
 			log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
 			continue
 		}

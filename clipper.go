@@ -70,6 +70,7 @@ type commandArguments struct {
 	skipSearch           bool
 	skipBuild            bool
 	skipNotify           bool
+	rebuild              bool
 	runMode              string
 }
 
@@ -125,7 +126,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 			log.Printf("can not create builder: %v", err)
 			os.Exit(1)
 		}
-		err = builder.Build()
+		err = builder.Build(cmdArgs.rebuild)
 		if err != nil {
 			log.Printf("can not build page: %v", err)
 			os.Exit(1)
@@ -175,6 +176,7 @@ func main() {
 	flag.BoolVar(&cmdArgs.skipSearch, "skipSearch", false, "skip search")
 	flag.BoolVar(&cmdArgs.skipBuild, "skipBuild", false, "skip build")
 	flag.BoolVar(&cmdArgs.skipNotify, "skipNotify", false, "skip Notify")
+	flag.BoolVar(&cmdArgs.rebuild, "rebuild", false, "force rebuild")
 	flag.StringVar(&cmdArgs.runMode, "runMode", "crawl", "run mode crawl or web")
 	flag.Parse()
 	cf, err := configurator.NewConfigurator(cmdArgs.configFile)
