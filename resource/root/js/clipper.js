@@ -43,7 +43,6 @@ var app = new Vue({
 
 				}
 			}
-			console.log(this.settings);
 		},
 		saveSetting: function() {
 			if (this.settings[this.channelId]) {
@@ -53,7 +52,6 @@ var app = new Vue({
 					defaultDuration: this.defaultDuration
 				}
 			}
-			console.log(this.settings);
 			localStorage.setItem('settings', JSON.stringify(this.settings));
 		},
 		openSetting: function() {
@@ -102,7 +100,6 @@ var app = new Vue({
 				nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
 			}
 			this.fixClipDuration(clip, nextClip);
-			console.log(clip);
 			return clip;
 		},
 		getNextClip: function() {
@@ -128,7 +125,6 @@ var app = new Vue({
 		youtubePlayerCreate: function() {
 			let clip = this.getNextClip();
 			this.updateClipView(clip)
-			console.log("create");
 			this.youtubePlayer = new YT.Player('player', {
 				videoId: clip.VideoId,
 				host: 'https://www.youtube.com',
