@@ -6,7 +6,7 @@ ConditionPathIsDirectory=/usr/local/clipper/build/cache
 
 [Service]
 EnvironmentFile=-/usr/local/clipper/etc/default/clipper
-ExecStart=/usr/local/clipper/bin/clipper -runMode=web -verbose=true
+ExecStart=/usr/local/clipper/bin/clipper -runMode=web
 KillMode=process
 Restart=on-failure
 RestartPreventExitStatus=255
