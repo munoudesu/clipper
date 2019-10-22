@@ -19,7 +19,7 @@ youtubeチャンネルの動画情報とコメントを収集して、そこか�
 ```
 go get -u github.com/munoudesu/clipper
 cd $GOPATH/src/github.com/munoudesu/clipper
-sudo ./install.sh
+sudo -E ./install.sh
 sudo vi /usr/local/clipper/etc/clipper.conf
 sudo vi /usr/local/clipper/etc/youtube_data_api_key_file
 sudo vi /usr/local/clipper/etc/twitter_api_key_file
