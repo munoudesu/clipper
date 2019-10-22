@@ -62,35 +62,66 @@ sudo systemctl start clipper.service
 ### clipper.conf
 - youtubeセクション
   - maxVideos
-    - 収集する最大動画数
+    - 収集する最大動画数を指定します。
 - youtube.channelsセクション
   - name
-    - 任意の名前
+    - 任意の名前を指定します。
   - channelId
-    - チャンネルのID
+    - チャンネルのIDを指定します。
 - twitterセクション
   - tweetLinkRoot
-    - ツイートに含めるリンクのURL
+    - ツイートに含めるリンクのURLを指定します。
   - tweetComment
-    - ツイートに含めるコメント
+    - ツイートに含めるコメントを指定します。
 - twitter.usersセクション
   - twitter.users.任意の名前
-    - youtube.channelsセクションの任意の名前と同じになる必要があります
+    - 任意の名前を指定します。youtube.channelsセクションの任意の名前と同じになる必要があります。
   - tags
-    - ツイートに含めたいタグリスト
+    - ツイートに含めたいタグリストを指定します。
 - buulderセクション
   - maxDuration
-    - ムービークリップの時間の最大。これ以上長い場合はこの時間に調整されます
+    - ムービークリップの時間の最大を指定します。これ以上長い場合はこの時間に調整されます。
   - adjustStartTimeSpan
-    - 開始時間がこの範囲のものがある場合は同一のものとして扱われます
+    - 開始時間の誤差を吸収する時間を指定します。開始時間がこの範囲のものがある場合は同一のものとして扱われます。
 - webセクション
   - addrPort
-    - webサーバーが使用するアドレスとポート 
+    - webサーバーが使用するアドレスとポートを指定します。
   - tlsCertPath
-    - 中間証明書も連結した完全な証明書のパス
+    - 中間証明書も連結した完全な証明書のパスを指定します。
   - tlsKeyPath
-    - 証明書のプライベートキー
+    - 証明書のプライベートキーを指定します。
 
+## コマンド引数
+- checkChannelModified
+  - チャンネルの変更をチェックしません。DB上にデータが存在すれば次に進みます。
+- checkVideoModified
+  - どうがの変更をチェックしません。 DB上にデータが存在すれば次に進みます。
+- checkCommentModified
+  - コメントの変更をチェックしません。 DB上にデータが存在すれば次に進みます。
+- config
+  - 読み込む設定ファイルを指定します。
+- rebild
+  - 情報に変更がない場合でも静的ページの更新を行います。
+- renotify
+  - 情報に変更がない場合でもtwitterへ通知を行います。
+- runMode
+  - 動作モードを指定します。
+- searchChannel
+  - チャンネルの検索をします。falseを指定するとスキップできます。
+- searchVideo
+  - 動画の検索をします。falseを指定するとスキップできます。
+- searchComment
+  - コメントの検索をします。falseを指定するとスキップできます。
+- skipSearch
+  - 情報収集処理をスキップします。
+- skipBuild
+  - 静的ページ作成処理をスキップします。
+- skipNotify
+  - 通知処理をスキップします。
+-　verbose
+  - 動作ログが出力されるようになります。
+  
+```
 ## 注意
 設定で取得動画数を少なくしない限り、ほとんどの場合youtube data api v3 のquota制限に達するため、割り当てを増加させたapi keyが必要になります。
 
