@@ -111,6 +111,7 @@ type ChannelPage struct {
 	ChannelId  string
 	Sha1Digest string
 	Dirty      int64
+	TweetId    int64
 }
 
 func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) {
@@ -788,13 +789,15 @@ func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId strin
             `INSERT OR REPLACE INTO channelPage (
                 channelId,
                 sha1Digest,
-                dirty
+                dirty,
+		tweetId
             ) VALUES (
-                ?, ?, ?
+                ?, ?, ?, ?
             )`,
 	    channelId,
 	    pageHash,
 	    dirty,
+	    -1,
         )
         if err != nil {
                 return errors.Wrap(err, "can not insert channelPage")
@@ -811,8 +814,8 @@ func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId strin
 	return nil
 }
 
-func (d *DatabaseOperator) UpdateDirtyOfChannelPage(channelId string, dirty int64) (error) {
-	res, err := d.db.Exec( `UPDATE channelPage SET dirty = ? WHERE channelId = ?` , dirty, channelId)
+func (d *DatabaseOperator) UpdateDirtyAndTweetIdOfChannelPage(channelId string, dirty int64, tweetId int64) (error) {
+	res, err := d.db.Exec( `UPDATE channelPage SET dirty = ?, tweetId = ? WHERE channelId = ?` , dirty, tweetId, channelId)
         if err != nil {
                 return errors.Wrap(err, "can not update channelPage")
         }
@@ -841,6 +844,7 @@ func (d *DatabaseOperator) GetChannelPageByChannelId(channelId string) (*Channel
                     &channelPage.ChannelId,
                     &channelPage.Sha1Digest,
                     &channelPage.Dirty,
+		    &channelPage.TweetId,
                 )
                 if err != nil {
                         return nil, false, errors.Wrap(err, "can not scan channelPage by channelId from database")
@@ -970,7 +974,8 @@ func (d *DatabaseOperator) createTables() (error) {
             CREATE TABLE IF NOT EXISTS channelPage (
                 channelId   TEXT PRIMARY KEY,
                 sha1Digest  TEXT NOT NULL,
-                dirty       INTEGER NOT NULL
+                dirty       INTEGER NOT NULL,
+                tweetId     INTEGER NOT NULL
 	)`
 	_, err = d.db.Exec(channelPageTableCreateQuery);
 	if  err != nil {

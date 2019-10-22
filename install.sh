@@ -4,9 +4,9 @@ INSTALLDIR="/usr/local/clipper"
 if [ -n "$1" ]; then
 	INSTALLDIR=$1
 fi	
-if [ -f clipper ]; then
+if [ -x clipper ]; then
 	install -o root -g root -m 755 -D  clipper $INSTALLDIR/bin/clipper
-elif [ -f $GOPATH/bin/clipper ]; then
+elif [ -x $GOPATH/bin/clipper ]; then
 	install -o root -g root -m 755 -D  $GOPATH/bin/clipper $INSTALLDIR/bin/clipper
 fi
 install -o root -g root -m 644 -D template/index.tmpl            $INSTALLDIR/source/template/index.tmpl

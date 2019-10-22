@@ -1,6 +1,7 @@
 package twitterapi
 
 import (
+	"log"
 	"context"
 	"strings"
 	"github.com/pkg/errors"
@@ -37,20 +38,35 @@ func (n *Notifier)Notify(renotify bool) (error) {
 		if !renotify && channelPage.Dirty == 0 {
 			continue
 		}
+		// 過去のtweetを消す
+		if channelPage.TweetId != -1 {
+			_, res, err := n.twitterClient.Statuses.Destroy(channelPage.TweetId, nil)
+			if err != nil {
+				if n.verbose {
+					log.Printf("can not delete previous tweet (channelId = %v): %v", channel.ChannelId, err)
+				}
+			}
+			if res.StatusCode != 200 {
+				if n.verbose {
+					log.Printf("delete tweet response error (status code = %v, channelId = %v)", res.StatusCode, channel.ChannelId)
+				}
+			}
+		}
+		// 新しいtweetをする
 		tagText := ""
 		user, ok := n.users[channel.Name]
 		if ok {
 			tagText = strings.Join(user.Tags, "\n")
 		}
 		tweetText := n.tweetComment + "\n" + tagText + "\n" + n.tweetLinkRoot + channel.ChannelId + ".html"
-		_, res, err := n.twitterClient.Statuses.Update(tweetText, nil)
+		tweet, res, err := n.twitterClient.Statuses.Update(tweetText, nil)
 		if err != nil {
-			return errors.Wrapf(err,"can not tweet (channelId = %v)", channel.ChannelId)
+			return errors.Wrapf(err,"can not post new tweet (channelId = %v)", channel.ChannelId)
 		}
 		if res.StatusCode != 200 {
-			return errors.Wrapf(err, "faild to tweet (status code = %v, channelId = %v)", res.StatusCode, channel.ChannelId)
+			return errors.Wrapf(err, "post tweet response error (status code = %v, channelId = %v)", res.StatusCode, channel.ChannelId)
 		}
-		err =  n.databaseOperator.UpdateDirtyOfChannelPage(channel.ChannelId, 0)
+		err =  n.databaseOperator.UpdateDirtyAndTweetIdOfChannelPage(channel.ChannelId, 0, tweet.ID)
 		if err != nil {
 			return errors.Wrapf(err, "update dirty of channel page (channelId = %v)", channel.ChannelId)
 		}
