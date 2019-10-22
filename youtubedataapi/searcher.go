@@ -4,6 +4,7 @@ package youtubedataapi
 import (
 	"log"
 	"context"
+	"strings"
 	"github.com/pkg/errors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -124,7 +125,13 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
                 commentThreadsListCall.TextFormat("plainText")
                 commentThreadListResponse, err := commentThreadsListCall.Do()
                 if err != nil {
-			return  errors.Wrapf(err, "can not do comment thread list call")
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "While this can be a transient error")  {
+				log.Printf("can not do comment thread list call, retry ... : %v", err)
+				pageToken = ""
+				continue
+			}
+			return errors.Wrapf(err, "can not do comment thread list call")
                 }
                 for _, item := range commentThreadListResponse.Items {
 			commentThread, ok, err := s.databaseOperator.GetCommentThreadByCommentThreadId(item.Id)
