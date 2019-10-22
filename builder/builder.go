@@ -64,6 +64,7 @@ type Builder struct {
 	buildCacheDirPath     string
 	channels              youtubedataapi.Channels
 	databaseOperator      *database.DatabaseOperator
+	verbose               bool
 	timeRangeRegexp       *regexp.Regexp
 	startEndSepRegexp     *regexp.Regexp
 	hourSepRegexp         *regexp.Regexp
@@ -90,13 +91,17 @@ func (b *Builder)timeStringToSeconds(timeString string) (int64) {
 		minString := elems[0]
 		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse min string (minString = %v, timeString = %v)", minString, timeString)
+			if b.verbose {
+				log.Printf("can not parse min string (minString = %v, timeString = %v)", minString, timeString)
+			}
 			return 0
 		}
 		secString := elems[1]
 		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse sec string (secString = %v, timeString = %v)", secString, timeString)
+			if b.verbose {
+				log.Printf("can not parse sec string (secString = %v, timeString = %v)", secString, timeString)
+			}
 			return 0
 		}
 		return sec + (min * 60)
@@ -104,24 +109,32 @@ func (b *Builder)timeStringToSeconds(timeString string) (int64) {
 		hourString := elems[0]
 		hour, err := strconv.ParseInt(strings.TrimSpace(hourString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse hour string (hourString = %v, timeString = %v)", hourString, timeString)
+			if b.verbose {
+				log.Printf("can not parse hour string (hourString = %v, timeString = %v)", hourString, timeString)
+			}
 			return 0
 		}
 		minString := elems[1]
 		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse min string (minString = %v, timeString = %v)", minString, timeString)
+			if b.verbose {
+				log.Printf("can not parse min string (minString = %v, timeString = %v)", minString, timeString)
+			}
 			return 0
 		}
 		secString := elems[2]
 		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse sec string (secString = %v, timeString = %v)", secString, timeString)
+			if b.verbose {
+				log.Printf("can not parse sec string (secString = %v, timeString = %v)", secString, timeString)
+			}
 			return 0
 		}
 		return sec + (min * 60) + (hour * 3600)
 	default:
-		log.Printf("can not parse tims string (timeString = %v, timeString = %v)", timeString)
+		if b.verbose {
+			log.Printf("can not parse tims string (timeString = %v, timeString = %v)", timeString)
+		}
 		return 0
 	}
 }
@@ -134,7 +147,9 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 		hourString := elems[0]
 		hour, err := strconv.ParseInt(strings.TrimSpace(hourString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse hour string (hourString = %v, durationString = %v)", hourString, durationString)
+			if b.verbose {
+				log.Printf("can not parse hour string (hourString = %v, durationString = %v)", hourString, durationString)
+			}
 			return 0
 		}
 		seconds += hour * 3600
@@ -145,7 +160,9 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 		minString := elems[0]
 		min, err := strconv.ParseInt(strings.TrimSpace(minString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse min string (minString = %v, durationString = %v)", minString, durationString)
+			if b.verbose {
+				log.Printf("can not parse min string (minString = %v, durationString = %v)", minString, durationString)
+			}
 			return 0
 		}
 		seconds += min * 60
@@ -156,7 +173,9 @@ func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 		secString := elems[0]
 		sec, err := strconv.ParseInt(strings.TrimSpace(secString), 10, 64)
 		if err != nil {
-			log.Printf("can not parse sec string (minString = %v, durationString = %v)", secString, durationString)
+			if b.verbose {
+				log.Printf("can not parse sec string (minString = %v, durationString = %v)", secString, durationString)
+			}
 			return 0
 		}
 		seconds += sec
@@ -281,11 +300,15 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			return nil, errors.Wrapf(err, "can not get video from database (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
 		}
 		if !ok {
-			log.Printf("skip comment not found video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
+			if b.verbose {
+				log.Printf("skip comment not found video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
+			}
 			continue
 		}
 		if !video.StatusEmbeddable {
-			log.Printf("skip comment because unembeddable video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
+			if b.verbose {
+				log.Printf("skip comment because unembeddable video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
+			}
 			continue
 		}
 		idx, ok := channelProp.videosDupCheckMap[comment.VideoId]
@@ -429,7 +452,9 @@ func (b *Builder)Build(rebuild bool) (error) {
 		}
 		newChannelPageSha1Digest := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
 		if !rebuild && ok && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
-			log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
+			if b.verbose {
+				log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
+			}
 			continue
 		}
 		channelPageJsonPath := filepath.Join(b.buildCacheDirPath, dbChannel.ChannelId + ".json")
@@ -450,7 +475,7 @@ func (b *Builder)Build(rebuild bool) (error) {
 	return nil
 }
 
-func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, adjustStartTimeSpan int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator) (*Builder, error)  {
+func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, adjustStartTimeSpan int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator, verbose bool) (*Builder, error)  {
         if buildDirPath == "" {
                 return nil, errors.New("no build directory path")
         }
@@ -519,6 +544,7 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 		buildCacheDirPath: buildCacheDirPath,
 		channels: channels,
 		databaseOperator: databaseOperator,
+		verbose: verbose,
 		timeRangeRegexp: timeRangeRegexp,
 		startEndSepRegexp: startEndSepRegexp,
 		hourSepRegexp: hourSepRegexp,

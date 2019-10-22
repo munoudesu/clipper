@@ -30,10 +30,24 @@ tar zxvf noip-duc-linux.tar.gz
 cd noip-2.1.9-1
 make
 sudo make install
-sudo cp  debian.noip2.sh /etc/init.d/noip2.sh
-sudo chmod 755 /etc/init.d/noip2.sh
-sudo update-rc.d noip2.sh defaults
-sudo service noip2.sh start
+sudo vi  /lib/systemd/system/noip2.service
+> [Unit]
+> Description = noip2 daemon
+> After=network.target
+> 
+> [Service]
+> ExecStart = /usr/local/bin/noip2
+> Type = forking
+> Restart=on-failure
+> RestartPreventExitStatus=255
+> KillMode=process
+> 
+> [Install]
+> WantedBy = multi-user.target
+> Alias=noip2.service
+sudo systemctl daemon-reload
+sudo systemctl enable noip2
+sudo systemctl start noip2
 cd ~/
 sudo certbot certonly --standalone --non-interactive --agree-tos --keep --email <yout_email> --domains <your_domain>
 cd go/src/github.com/munoudesu/clipper
@@ -43,6 +57,7 @@ sudo vi /usr/local/clipper/etc/clipper.conf
 sudo vi /usr/local/clipper/etc/youtube_data_api_key_file
 sudo vi /usr/local/clipper/etc/twitter_api_key_file
 sudo systemctl daemon-reload
+sudo systemctl enable clipper.service
 sudo systemctl start clipper.service
 sudo vi /etc/cron.d/certbot
 > 0 */12 * * * root test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(43200))' && certbot -q renew --post-hook "service clipper restart"

@@ -12,6 +12,7 @@ import (
 type DatabaseOperator struct {
         databasePath string
         db           *sql.DB
+	verbose      bool
 }
 
 type Channel struct{
@@ -122,7 +123,9 @@ func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) 
         if err != nil {
                 return errors.Wrap(err, "can not get rowsAffected of replyComment")
         }
-        log.Printf("delete replyComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	if d.verbose {
+		log.Printf("delete replyComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	}
 
         return nil
 }
@@ -136,7 +139,9 @@ func (d *DatabaseOperator) DeleteTopLevelCommentsByVideoId(videoId string) (erro
         if err != nil {
                 return errors.Wrap(err, "can not get rowsAffected of topLevelComment")
         }
-        log.Printf("delete topLevelComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	if d.verbose {
+		log.Printf("delete topLevelComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	}
 
         return nil
 }
@@ -151,7 +156,9 @@ func (d *DatabaseOperator) DeleteCommentThreadsByVideoId(videoId string) (error)
         if err != nil {
                 return errors.Wrap(err, "can not get rowsAffected of commentThread")
         }
-        log.Printf("delete commentThreads (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	if d.verbose {
+		log.Printf("delete commentThreads (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	}
 
         return nil
 }
@@ -202,7 +209,9 @@ func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (e
 		if err != nil {
 			return errors.Wrap(err, "can not get insert id of replyComment")
 		}
-		log.Printf("update reply comment (commentId = %v, insert id = %v)", replyComment.CommentId, id)
+		if d.verbose {
+			log.Printf("update reply comment (commentId = %v, insert id = %v)", replyComment.CommentId, id)
+		}
 	}
 
 	return nil
@@ -251,7 +260,9 @@ func (d *DatabaseOperator) updateTopLevelComment(topLevelComment *TopLevelCommen
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of topLevelComment")
         }
-	log.Printf("update top level comment (commentId = %v, insert id = %v)", topLevelComment.CommentId, id)
+	if d.verbose {
+		log.Printf("update top level comment (commentId = %v, insert id = %v)", topLevelComment.CommentId, id)
+	}
 
         return nil
 }
@@ -283,7 +294,9 @@ func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (er
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of commentThread")
         }
-	log.Printf("update comment thread (commentThreadId = %v, insert id = %v)", commentThread.CommentThreadId, id)
+	if d.verbose {
+		log.Printf("update comment thread (commentThreadId = %v, insert id = %v)", commentThread.CommentThreadId, id)
+	}
 	err = d.updateTopLevelComment(commentThread.TopLevelComment)
 	if err != nil {
                 return errors.Wrap(err, "can not update topLevelComment")
@@ -472,7 +485,9 @@ func (d *DatabaseOperator) DeleteVideoByVideoId(videoId string) (error) {
         if err != nil {
                 return errors.Wrap(err, "can not get rowsAffected of video")
         }
-        log.Printf("delete video (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	if d.verbose {
+		log.Printf("delete video (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	}
 
         return nil
 }
@@ -540,7 +555,9 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of video")
         }
-	log.Printf("update video (videoId = %v, insert id = %v)", video.VideoId, id)
+	if d.verbose {
+		log.Printf("update video (videoId = %v, insert id = %v)", video.VideoId, id)
+	}
 
         return nil
 }
@@ -723,7 +740,9 @@ func (d *DatabaseOperator) UpdateChannel(channel *Channel) (error) {
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of channel")
         }
-	log.Printf("update channel (channelId = %v, insert id = %v)", channel.ChannelId, id)
+	if d.verbose {
+		log.Printf("update channel (channelId = %v, insert id = %v)", channel.ChannelId, id)
+	}
 
         return nil
 }
@@ -785,7 +804,9 @@ func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId strin
         if err != nil {
                 return errors.Wrap(err, "can not get insert id of channelPage")
         }
-	log.Printf("update channel page (channelId = %v, insert id = %v)", channelId, id)
+	if d.verbose {
+		log.Printf("update channel page (channelId = %v, insert id = %v)", channelId, id)
+	}
 
 	return nil
 }
@@ -800,7 +821,9 @@ func (d *DatabaseOperator) UpdateDirtyOfChannelPage(channelId string, dirty int6
         if err != nil {
                 return errors.Wrap(err, "can not get rowsAffected of channelPage")
         }
-        log.Printf("update channel page (channelId = %v, rowsAffected = %v)", channelId, rowsAffected)
+	if d.verbose {
+		log.Printf("update channel page (channelId = %v, rowsAffected = %v)", channelId, rowsAffected)
+	}
 
 	return nil
 }
@@ -974,7 +997,7 @@ func (d *DatabaseOperator) Close()  {
         d.db.Close()
 }
 
-func NewDatabaseOperator(databasePath string) (*DatabaseOperator, error) {
+func NewDatabaseOperator(databasePath string, verbose bool) (*DatabaseOperator, error) {
         if databasePath == "" {
                 return nil, errors.New("no database path")
         }
@@ -989,5 +1012,6 @@ func NewDatabaseOperator(databasePath string) (*DatabaseOperator, error) {
         return &DatabaseOperator{
                 databasePath: databasePath,
                 db: nil,
+		verbose: verbose,
         }, nil
 }

@@ -26,6 +26,7 @@ type Searcher struct {
 	youtubeServices    []*youtube.Service
 	youtubeServicesIdx int
 	databaseOperator   *database.DatabaseOperator
+	verbose            bool
 }
 
 func (s *Searcher)getYoutubeService() (*youtube.Service) {
@@ -55,7 +56,9 @@ func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, comme
 		}
 	}
 	if len(commentThreadListResponse.Items) != 1 {
-		log.Printf("not found commentThread or found many commentThread (commentThreadId = %v): %v", commentThreadId, err)
+		if s.verbose {
+			log.Printf("not found commentThread or found many commentThread (commentThreadId = %v): %v", commentThreadId, err)
+		}
 		return nil, false, true, nil
 	}
 	item := commentThreadListResponse.Items[0]
@@ -130,7 +133,9 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 			}
 			if ok {
 				if !checkModified {
-					log.Printf("skipped because commentThread is already exists in database (commentThreadId = %v)", commentThread.CommentThreadId)
+					if s.verbose {
+						log.Printf("skipped because commentThread is already exists in database (commentThreadId = %v)", commentThread.CommentThreadId)
+					}
 					continue
 				}
 				newCommentThread, notModified, notFound, err := s.getCommentThreadByCommentThreadId(video, commentThread.CommentThreadId, commentThread.ResponseEtag)
@@ -138,19 +143,17 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", commentThread.CommentThreadId)
 				}
 				if notFound {
-					log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", commentThread.CommentThreadId)
+					if s.verbose {
+						log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", commentThread.CommentThreadId)
+					}
 					continue
 				}
 				if notModified {
-					log.Printf("skipped because commentThread resource is not modified (commentThreadIdId = %v, responseEtag = %v)", commentThread.CommentThreadId, commentThread.ResponseEtag)
+					if s.verbose {
+						log.Printf("skipped because commentThread resource is not modified (commentThreadIdId = %v, responseEtag = %v)", commentThread.CommentThreadId, commentThread.ResponseEtag)
+					}
 					continue
 				}
-/*
-				if commentThread.Etag == newCommentThread.Etag {
-					log.Printf("skipped because commentThread resource have same etag (commentThreadIdId = %v, oldEtag = %v, newEtag = %v)", newCommentThread.CommentThreadId, commentThread.Etag, newCommentThread.Etag)
-					continue
-				}
-*/
 				err = s.databaseOperator.UpdateCommentThread(newCommentThread)
 				if err != nil {
 					return errors.Wrapf(err, "can not update commentThread (commentThreadId = %v)", newCommentThread.CommentThreadId)
@@ -161,7 +164,9 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 					return errors.Wrapf(err, "can not get commentThread by commentThreadId with api (commentThreadIdId = %v)", item.Id)
 				}
 				if notFound {
-					log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", item.Id)
+					if s.verbose {
+						log.Printf("skipped because not found commentThread resource (commentThreadIdId = %v)", item.Id)
+					}
 					continue
 				}
 				err = s.databaseOperator.UpdateCommentThread(newCommentThread)
@@ -197,7 +202,9 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 		}
 	}
 	if len(videoListResponse.Items) != 1 {
-		log.Printf("not found video or found many video (videoId = %v): %v", err)
+		if s.verbose {
+			log.Printf("not found video or found many video (videoId = %v): %v", err)
+		}
 		return nil, false, true, nil
 	}
 	item := videoListResponse.Items[0]
@@ -264,7 +271,9 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 			}
 			if ok {
 				if !checkModified {
-					log.Printf("skipped because video is already exists in database (videoId = %v)", video.VideoId)
+					if s.verbose {
+						log.Printf("skipped because video is already exists in database (videoId = %v)", video.VideoId)
+					}
 					continue
 				}
 				newVideo, notModified, notFound, err := s.getVideoByVideoId(channel, video.VideoId, video.ResponseEtag)
@@ -272,15 +281,21 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", video.VideoId)
 				}
 				if notFound {
-					log.Printf("skipped because not found video resource (videoId = %v)", video.VideoId)
+					if s.verbose {
+						log.Printf("skipped because not found video resource (videoId = %v)", video.VideoId)
+					}
 					continue
 				}
 				if notModified {
-					log.Printf("skipped because video resource is not modified (videoId = %v, responseEtag = %v)", video.VideoId, video.ResponseEtag)
+					if s.verbose {
+						log.Printf("skipped because video resource is not modified (videoId = %v, responseEtag = %v)", video.VideoId, video.ResponseEtag)
+					}
 					continue
 				}
 				if video.Etag == newVideo.Etag {
-					log.Printf("skipped because video resource have same etag (videoId = %v, oldEtag = %v, newEtag = %v)", newVideo.VideoId, video.Etag, newVideo.Etag,)
+					if s.verbose {
+						log.Printf("skipped because video resource have same etag (videoId = %v, oldEtag = %v, newEtag = %v)", newVideo.VideoId, video.Etag, newVideo.Etag,)
+					}
 					continue
 				}
 				err = s.databaseOperator.UpdateVideo(newVideo)
@@ -293,7 +308,9 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 					return errors.Wrapf(err, "can not get video by videoId with api (videoId = %v)", item.Id.VideoId)
 				}
 				if notFound {
-					log.Printf("skipped because not found video resource (videoId = %v)", item.Id.VideoId)
+					if s.verbose {
+						log.Printf("skipped because not found video resource (videoId = %v)", item.Id.VideoId)
+					}
 					continue
 				}
 				err = s.databaseOperator.UpdateVideo(newVideo)
@@ -350,7 +367,9 @@ func (s *Searcher)getChannelByChannelId(name string, channelId string, etag stri
 		}
 	}
 	if len(channelListResponse.Items) != 1 {
-		log.Printf("not found channel or found many channel (channelId = %v): %v", err)
+		if s.verbose {
+			log.Printf("not found channel or found many channel (channelId = %v): %v", err)
+		}
 		return nil, false, true, nil
 	}
 	item := channelListResponse.Items[0]
@@ -383,7 +402,9 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 	}
 	if ok {
 		if !checkModified {
-			log.Printf("skipped because channel is already exists in database (channelId = %v)", channel.ChannelId)
+			if s.verbose {
+				log.Printf("skipped because channel is already exists in database (channelId = %v)", channel.ChannelId)
+			}
 			return nil
 		}
 		newChannel, notModified, notFound, err := s.getChannelByChannelId(name, channel.ChannelId, channel.ResponseEtag)
@@ -391,15 +412,21 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 			return errors.Wrapf(err, "can not get channel by channelId with api (channelId = %v)", channel.ChannelId)
 		}
 		if notFound {
-			log.Printf("skipped because not found channel resource (channelId = %v)", channel.ChannelId)
+			if s.verbose {
+				log.Printf("skipped because not found channel resource (channelId = %v)", channel.ChannelId)
+			}
 			return nil
 		}
 		if notModified {
-			log.Printf("skipped because channel resource is not modified (channelId = %v, responseEtag = %v)", channel.ChannelId, channel.ResponseEtag)
+			if s.verbose {
+				log.Printf("skipped because channel resource is not modified (channelId = %v, responseEtag = %v)", channel.ChannelId, channel.ResponseEtag)
+			}
 			return nil
 		}
 		if channel.Etag == newChannel.Etag {
-			log.Printf("skipped because channel resource have same etag (channelId = %v, oldEtag = %v, newEtag = %v)", newChannel.ChannelId, channel.Etag, newChannel.Etag,)
+			if s.verbose {
+				log.Printf("skipped because channel resource have same etag (channelId = %v, oldEtag = %v, newEtag = %v)", newChannel.ChannelId, channel.Etag, newChannel.Etag,)
+			}
 			return nil
 		}
 		err = s.databaseOperator.UpdateChannel(newChannel)
@@ -412,7 +439,9 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 			return errors.Wrapf(err, "can not get channel by channelId with api (channelId = %v)", channelId)
 		}
 		if notFound {
-			log.Printf("skipped because not found channel resource (channelId = %v)", channelId)
+			if s.verbose {
+				log.Printf("skipped because not found channel resource (channelId = %v)", channelId)
+			}
 			return nil
 		}
 		err = s.databaseOperator.UpdateChannel(newChannel)
@@ -444,7 +473,9 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 			}
 			for _, video := range videos {
 				if !video.StatusEmbeddable {
-					log.Printf("skip get comment because unembeddable video (videoId = %v)", video.VideoId)
+					if s.verbose {
+						log.Printf("skip get comment because unembeddable video (videoId = %v)", video.VideoId)
+					}
 					continue
 				}
 				err := s.searchCommentThreadsByVideo(video, checkCommentModified)
@@ -457,7 +488,7 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 	return nil
 }
 
-func NewSearcher(apiKeys []string, maxVideos int64, channels []*Channel, databaseOperator *database.DatabaseOperator) (*Searcher, error) {
+func NewSearcher(apiKeys []string, maxVideos int64, channels []*Channel, databaseOperator *database.DatabaseOperator, verbose bool) (*Searcher, error) {
 	ctxs := make([]context.Context, 0, len(apiKeys))
 	youtubeServices := make([]*youtube.Service, 0, len(apiKeys))
 	for _, apiKey := range apiKeys {
@@ -477,5 +508,6 @@ func NewSearcher(apiKeys []string, maxVideos int64, channels []*Channel, databas
 		youtubeServices: youtubeServices,
 		youtubeServicesIdx: 0,
 		databaseOperator: databaseOperator,
+		verbose: verbose,
 	}, nil
 }

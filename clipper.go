@@ -107,7 +107,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 		log.Printf("can not load api key pair of twitter: %v", err)
 		os.Exit(1)
 	}
-	databaseOperator, err := database.NewDatabaseOperator(conf.Database.DatabasePath)
+	databaseOperator, err := database.NewDatabaseOperator(conf.Database.DatabasePath, cmdArgs.verbose)
 	if err != nil {
 		log.Printf("can not create database operator: %v", err)
 		os.Exit(1)
@@ -119,7 +119,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 	}
 	defer databaseOperator.Close()
 	if !cmdArgs.skipSearch {
-		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Channels, databaseOperator)
+		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Channels, databaseOperator, cmdArgs.verbose)
 		if err != nil {
 			log.Printf("can not create searcher of youtube: %v", err)
 			os.Exit(1)
@@ -131,7 +131,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 		}
 	}
 	if !cmdArgs.skipBuild {
-		builder, err := builder.NewBuilder(conf.Builder.SourceDirPath, conf.Builder.BuildDirPath, conf.Builder.MaxDuration, conf.Builder.AdjustStartTimeSpan, conf.Youtube.Channels, databaseOperator)
+		builder, err := builder.NewBuilder(conf.Builder.SourceDirPath, conf.Builder.BuildDirPath, conf.Builder.MaxDuration, conf.Builder.AdjustStartTimeSpan, conf.Youtube.Channels, databaseOperator, cmdArgs.verbose)
 		if err != nil {
 			log.Printf("can not create builder: %v", err)
 			os.Exit(1)

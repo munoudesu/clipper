@@ -20,7 +20,7 @@ install -o root -g root -m 644 -D resource/root/js/vue.min.js    $INSTALLDIR/sou
 install -o root -g root -m 644 -D clipper.conf                   $INSTALLDIR/etc/clipper.conf
 install -o root -g root -m 644 -D clipper.service                $INSTALLDIR/etc/systemd/system/clipper.service
 install -o root -g root -m 644 -D clipper.cron                   $INSTALLDIR/etc/cron.d/clipper
-ln -sf $INSTALLDIR/etc/systemd/system/clipper.service /etc/systemd/system/clipper.service
+ln -sf $INSTALLDIR/etc/systemd/system/clipper.service /lib/systemd/system/clipper.service
 ln -sf $INSTALLDIR/etc/cron.d/clipper /etc/cron.d/clipper
 mkdir -p $INSTALLDIR/etc/default
 chmod 755 $INSTALLDIR/etc/default
