@@ -27,6 +27,11 @@ var app = new Vue({
 		});
 	},
 	methods: {
+		initSetting: function() {
+			this.settings[this.channelId] = {
+				defaultDuration: this.defaultDuration
+			};
+		},
 		loadSetting: function() {
 			if (localStorage.getItem('settings')) {
 				try {
@@ -34,14 +39,14 @@ var app = new Vue({
 					if (this.settings[this.channelId])  {
 						this.defaultDuration = this.settings[this.channelId].defaultDuration;
 					} else {
-						this.settings[this.channelId] = {
-							defaultDuration: this.defaultDuration
-						}
+						this.initSetting();
 					}
 				} catch(e) {
 					localStorage.removeItem('settings');
-
+					this.initSetting();
 				}
+			} else {
+				this.initSetting();
 			}
 		},
 		saveSetting: function() {

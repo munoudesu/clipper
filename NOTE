@@ -52,7 +52,7 @@ cd ~/
 sudo certbot certonly --standalone --non-interactive --agree-tos --keep --email <yout_email> --domains <your_domain>
 cd go/src/github.com/munoudesu/clipper
 chmod 755 install.sh
-sudo ./install.sh
+sudo -E ./install.sh
 sudo vi /usr/local/clipper/etc/clipper.conf
 sudo vi /usr/local/clipper/etc/youtube_data_api_key_file
 sudo vi /usr/local/clipper/etc/twitter_api_key_file

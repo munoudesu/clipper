@@ -8,6 +8,9 @@ if [ -x clipper ]; then
 	install -o root -g root -m 755 -D  clipper $INSTALLDIR/bin/clipper
 elif [ -x $GOPATH/bin/clipper ]; then
 	install -o root -g root -m 755 -D  $GOPATH/bin/clipper $INSTALLDIR/bin/clipper
+else
+	echo "not found clipper"
+	exit 1
 fi
 install -o root -g root -m 644 -D template/index.tmpl            $INSTALLDIR/source/template/index.tmpl
 install -o root -g root -m 644 -D template/page.tmpl             $INSTALLDIR/source/template/page.tmpl
