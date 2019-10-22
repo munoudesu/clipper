@@ -128,6 +128,8 @@ var app = new Vue({
 			this.youtubePlayer = new YT.Player('player', {
 				videoId: clip.VideoId,
 				host: 'https://www.youtube.com',
+				width: 854,
+				height: 480,
 				playerVars: {
 					'autoplay': 1,
 					'controls': 1,
