@@ -170,6 +170,7 @@ var app = new Vue({
 			});
 		},
 		onYoutubePlayerReady: function(event) {
+			event.target.playVideo();
 		},
 		onYoutubePlayerStateChange: function(event) {
 			let st = event.target.getPlayerState();
