@@ -51,6 +51,9 @@ func (n *Notifier)Notify(renotify bool) (error) {
 					log.Printf("delete tweet response error (status code = %v, channelId = %v)", res.StatusCode, channel.ChannelId)
 				}
 			}
+			if n.verbose {
+				log.Printf("delete tweet done (channelId = %v, tweetId = %v)", channel.ChannelId, channelPage.TweetId)
+			}
 		}
 		// 新しいtweetをする
 		tagText := ""
