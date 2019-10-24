@@ -438,7 +438,7 @@ func (b *Builder)Build(rebuild bool) (error) {
 	}
 	// create page prop
 	for _, dbChannel := range dbChannels {
-		lastChannelPage, ok, err := b.databaseOperator.GetChannelPageByChannelId(dbChannel.ChannelId)
+		lastChannelPage, lastChannelPageOk, err := b.databaseOperator.GetChannelPageByChannelId(dbChannel.ChannelId)
                 if err != nil {
                         return  errors.Wrapf(err, "can not get channel page from database (channelId = %v)", dbChannel.ChannelId)
                 }
@@ -451,7 +451,7 @@ func (b *Builder)Build(rebuild bool) (error) {
 			return errors.Wrapf(err, "can not marshal json (channelId = %v)", dbChannel.ChannelId)
 		}
 		newChannelPageSha1Digest := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
-		if !rebuild && ok && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
+		if !rebuild && lastChannelPageOk && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
 			if b.verbose {
 				log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
 			}
@@ -467,7 +467,13 @@ func (b *Builder)Build(rebuild bool) (error) {
 		if err != nil {
 			return errors.Wrapf(err, "can not write sha1 digest of json to file (channelId = %v, path = %v)", dbChannel.ChannelId, channelPageJsonSha1DigestPath)
 		}
-		err = b.databaseOperator.UpdateSha1DigestAndDirtyOfChannelPage(dbChannel.ChannelId, newChannelPageSha1Digest, 1)
+		var tweetId int64
+		if lastChannelPageOk {
+			tweetId = lastChannelPage.TweetId
+		} else {
+			tweetId = -1
+		}
+		err = b.databaseOperator.UpdateSha1DigestAndDirtyOfChannelPage(dbChannel.ChannelId, newChannelPageSha1Digest, 1, tweetId)
                 if err != nil {
                         return  errors.Wrapf(err, "can not update sha1 digest and dirty of channelPage (channelId = %v, newChannelPageSha1Digest = %v)", dbChannel.ChannelId, newChannelPageSha1Digest)
                 }

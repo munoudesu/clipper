@@ -784,7 +784,7 @@ func (d *DatabaseOperator) GetChannelByChannelId(channelId string) (*Channel, bo
         return nil, false, nil
 }
 
-func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId string, pageHash string, dirty int64) (error) {
+func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId string, pageHash string, dirty int64, tweetId int64) (error) {
 	res, err := d.db.Exec(
             `INSERT OR REPLACE INTO channelPage (
                 channelId,
@@ -797,7 +797,7 @@ func (d *DatabaseOperator) UpdateSha1DigestAndDirtyOfChannelPage(channelId strin
 	    channelId,
 	    pageHash,
 	    dirty,
-	    -1,
+	    tweetId,
         )
         if err != nil {
                 return errors.Wrap(err, "can not insert channelPage")
