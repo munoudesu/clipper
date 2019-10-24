@@ -37,7 +37,7 @@ sudo systemctl start clipper.service
 - クローラー
   - cronで1日1回情報を収集し、静的ページを更新します。データに変更があればtwitterに通知します。
 - webサーバー
-  - httpsで静的ページを公開します。https://<domain>/root/index.htmlでアクセスできるようになります。
+  - httpsで静的ページを公開します。https://{domain}/root/index.htmlでアクセスできるようになります。
 
 ## 設定
 
