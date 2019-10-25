@@ -8,6 +8,7 @@ var app = new Vue({
 		clipRecommenders: "",
 		clipVideoTitle: "",
 		originUrl: "",
+		clipsEtag: "",
 		clips: null,
 		clipsIndex: -1,
 		youtubePlayer: null,
@@ -19,6 +20,7 @@ var app = new Vue({
 		this.channelId = document.getElementById('channelId').value;
 		let pagePropUrl = "../cache/" + this.channelId + ".json?_=" + Date.now();
 		axios.get(pagePropUrl).then(res => {
+			this.clipsEtag = res.headers.etag;
 			this.clips = res.data;
 			this.loadSetting();
 			this.youtubePlayerInit();

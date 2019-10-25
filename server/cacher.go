@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"log"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"strings"
 	"bytes"
+	"net/http"
 	"path/filepath"
 	"io/ioutil"
 	"compress/gzip"
@@ -15,6 +17,7 @@ import (
 )
 
 type fileCache struct {
+	createAt          time.Time
 	digestFilModTime  time.Time
 	dataFilModTime    time.Time
 	sha1Digest        []byte
@@ -32,22 +35,32 @@ type cacher struct {
 	verbose                     bool
 }
 
-func (c *cacher) getGzipData(urlDataFilePath string) ([]byte, string, bool) {
-	dataFilePath := filepath.Join(c.cacheDirPath, urlDataFilePath)
-	fileCache, ok := c.getFileCache(dataFilePath)
-	if !ok {
-		return nil, "", false
+func (c *cacher) containsEtag(ifNoneMatch string, etag string) (bool) {
+	for _, s:= range strings.Split(ifNoneMatch, ",") {
+		if etag == strings.TrimSpace(s) {
+			return true
+		}
 	}
-	return fileCache.gzipData, fileCache.mineType, ok
+	return false
 }
 
-func (c *cacher) getRawData(urlDataFilePath string) ([]byte, string, bool) {
+func (c *cacher) getData(urlDataFilePath string, ifNoneMatch string, ifModifiedSince string) ([]byte, []byte, string, string, time.Time, bool, bool) {
 	dataFilePath := filepath.Join(c.cacheDirPath, urlDataFilePath)
 	fileCache, ok := c.getFileCache(dataFilePath)
 	if !ok {
-		return nil, "", false
+		return nil, nil, "", "", time.Time{}, false, false
 	}
-	return fileCache.rawData, fileCache.mineType, ok
+	etag := fmt.Sprintf("\"%v\"", string(fileCache.sha1Digest))
+	if ifNoneMatch != "" && c.containsEtag(ifNoneMatch, etag) {
+		return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, false, ok
+	}
+	if ifModifiedSince != "" {
+		parsedIfModifiedSince, err := http.ParseTime(ifModifiedSince)
+		if err == nil && parsedIfModifiedSince.After(fileCache.createAt) {
+			return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, false, ok
+		}
+	}
+	return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, true, ok
 }
 
 func (c *cacher) getFileCache(dataFilePath string) (*fileCache, bool) {
@@ -99,6 +112,7 @@ func (c *cacher) updateMain(dataFilePath string, digestFilePath string, dataFile
 		dataFileExt := filepath.Ext(dataFilePath)
 		mineType := mime.TypeByExtension(dataFileExt)
 		newFileCache := &fileCache {
+			createAt: time.Now(),
 			digestFilModTime: digestFile.ModTime(),
 			dataFilModTime: digestFile.ModTime(),
 			sha1Digest: sha1Digest,
@@ -136,6 +150,7 @@ func (c *cacher) updateMain(dataFilePath string, digestFilePath string, dataFile
 	dataFileExt := filepath.Ext(dataFilePath)
 	newMineType := mime.TypeByExtension(dataFileExt)
 	newFileCache := &fileCache {
+		createAt: time.Now(),
 		digestFilModTime: digestFile.ModTime(),
 		dataFilModTime: dataFile.ModTime(),
 		sha1Digest: newSha1Digest,

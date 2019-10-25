@@ -12,14 +12,6 @@ type handler struct {
 	verbose bool
 }
 
-func (h *handler) getCacheFileResponse(c *gin.Context, cacheFilePath string, cacheFileData []byte, contentType string, ok bool) {
-	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{ "error": fmt.Sprintf("not found %v", cacheFilePath) })
-		return
-	}
-	c.Data(http.StatusOK, contentType, cacheFileData)
-}
-
 func (h *handler) containsGzip(acceptEncoding string) (bool) {
 	for _, s:= range strings.Split(acceptEncoding, ",") {
 		if "gzip" == strings.TrimSpace(s) {
@@ -30,20 +22,50 @@ func (h *handler) containsGzip(acceptEncoding string) (bool) {
 }
 
 func (h *handler) getCacheFile(c *gin.Context) {
-	acceptEncoding := c.GetHeader("Accept-Encoding")
-	gzipOK := h.containsGzip(acceptEncoding)
+	gzipOK := h.containsGzip(c.GetHeader("Accept-Encoding"))
+	ifNotMatch := c.GetHeader("If-None-Match")
+	ifModifiedSince:= c.GetHeader("If-Modified-Since")
 	cacheFilePath := c.Param("cacheFilePath")
-	if cacheFilePath == "" {
+	cacheFileRawData, cacheFileGzipData, contentType, etag, lastModified, modified, ok := h.cacher.getData(cacheFilePath, ifNotMatch, ifModifiedSince)
+	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{ "error": fmt.Sprintf("not found %v", cacheFilePath) })
+		return
+	}
+	c.Header("Etag", etag)
+	if ifNotMatch != "" {
+		if modified == false {
+			c.Status(http.StatusNotModified)
+			return
+		}
+		if gzipOK {
+			c.Header("Content-Encoding", "gzip")
+			c.Data(http.StatusOK, contentType, cacheFileGzipData)
+			return
+		}
+		c.Data(http.StatusOK, contentType, cacheFileRawData)
+		return
+	}
+	if ifModifiedSince != "" {
+		c.Header("Last-Modified", lastModified.Format(http.TimeFormat))
+		if modified == false {
+			c.Status(http.StatusNotModified)
+			return
+		}
+		if gzipOK {
+			c.Header("Content-Encoding", "gzip")
+			c.Data(http.StatusOK, contentType, cacheFileGzipData)
+			return
+		}
+		c.Data(http.StatusOK, contentType, cacheFileRawData)
+		return
 	}
 	if gzipOK {
-		cacheFileData, contentType, ok := h.cacher.getGzipData(cacheFilePath)
 		c.Header("Content-Encoding", "gzip")
-		h.getCacheFileResponse(c, cacheFilePath, cacheFileData, contentType, ok)
-	} else {
-		cacheFileData, contentType, ok := h.cacher.getRawData(cacheFilePath)
-		h.getCacheFileResponse(c, cacheFilePath, cacheFileData, contentType, ok)
+		c.Data(http.StatusOK, contentType, cacheFileGzipData)
+		return
 	}
+	c.Data(http.StatusOK, contentType, cacheFileRawData)
+	return
 }
 
 func newHandler(cacher *cacher, verbose bool) (*handler){
