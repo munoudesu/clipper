@@ -51,6 +51,7 @@ func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, rootDirPa
         router := gin.Default()
         router.Static("/root", rootDirPath)
         jsonRouter := router.Group("/cache")
+        jsonRouter.HEAD("/:cacheFilePath", handler.headCacheFile)
         jsonRouter.GET("/:cacheFilePath", handler.getCacheFile)
         s := &http.Server{
             Addr: addrPort,
