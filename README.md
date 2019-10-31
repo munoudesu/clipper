@@ -119,7 +119,7 @@ sudo systemctl start clipper.service
   - 静的ページ作成処理をスキップします。
 - skipNotify
   - 通知処理をスキップします。
--　verbose
+- verbose
   - 動作ログが出力されるようになります。
   
 ## その他
