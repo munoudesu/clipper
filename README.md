@@ -121,6 +121,10 @@ sudo systemctl start clipper.service
 -　verbose
   - 動作ログが出力されるようになります。
   
-## 注意
-設定で取得動画数を少なくしない限り、ほとんどの場合youtube data api v3 のquota制限に達するため、割り当てを増加させたapi keyが必要になります。
+## その他
+- Youtubeポリシー
+  - https://developers.google.com/youtube/terms/developer-policies
+  - ポリシーを考慮して30日以内のデータしか保持しません。
+- API quota
+  - 30日以内の動画数が多いとYoutube Data API v3 のquota制限に達する可能性があるため、割り当てを増加させたAPI Keyが必要になります。
 
