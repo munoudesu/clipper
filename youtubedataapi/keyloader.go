@@ -23,6 +23,9 @@ func LoadApiKey(apiKeyFile string) ([]string, error) {
 	apiKeys := make([]string, 0, len(apiKeysStrings))
 	for _, s := range apiKeysStrings {
 		apiKey := strings.TrimSpace(s)
+		if strings.HasPrefix(apiKey, "#") {
+			continue
+		}
 		if apiKey == "" {
 			continue
 		}
