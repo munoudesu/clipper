@@ -1,7 +1,3 @@
-body {
-	background: linear-gradient(to bottom, white, #808080);
-}
-
 #headerContent {
 	text-align: right;
 }
@@ -36,6 +32,11 @@ body {
 
 .customPaddingRight {
 	padding: 5px 200px 5px 5px;
+}
+
+body {
+	background: linear-gradient(to bottom, white, #808080);
+	height: 100%;
 }
 
 button.customButton {

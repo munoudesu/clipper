@@ -3,6 +3,7 @@ package youtubedataapi
 
 import (
 	"log"
+	"time"
 	"context"
 	"strings"
 	"github.com/pkg/errors"
@@ -40,6 +41,7 @@ func (s *Searcher)getYoutubeService() (*youtube.Service) {
 }
 
 func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, commentThreadId string, etag string) (*database.CommentThread, bool, bool, error) {
+RETRY:
         commentThreadsService := youtube.NewCommentThreadsService(s.getYoutubeService())
 	commentThreadsListCall := commentThreadsService.List("id,replies,snippet")
 	commentThreadsListCall.MaxResults(2)
@@ -53,6 +55,17 @@ func (s *Searcher)getCommentThreadByCommentThreadId(video *database.Video, comme
 		if googleapi.IsNotModified(err) {
 			return nil, true, false, nil
 		} else {
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "While this can be a transient error")  {
+				log.Printf("can not do comment thread list call, retry ... : %v", err)
+				goto RETRY
+			} else if strings.Contains(errMsg, "unexpected EOF")  {
+				log.Printf("can not do comment thread list call, retry ... : %v", err)
+				goto RETRY
+			} else if strings.Contains(errMsg, "Backend Error, backendError")  {
+				log.Printf("can not do comment thread list call, retry ... : %v", err)
+				goto RETRY
+			}
 			return nil, false, false, errors.Wrapf(err, "can not do comment thread list call")
 		}
 	}
@@ -130,6 +143,14 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 				log.Printf("can not do comment thread list call, retry ... : %v", err)
 				pageToken = ""
 				continue
+			} else if strings.Contains(errMsg, "unexpected EOF")  {
+				log.Printf("can not do comment thread list call, retry ... : %v", err)
+				pageToken = ""
+				continue
+			} else if strings.Contains(errMsg, "Backend Error, backendError")  {
+				log.Printf("can not do comment thread list call, retry ... : %v", err)
+				pageToken = ""
+				continue
 			}
 			return errors.Wrapf(err, "can not do comment thread list call")
                 }
@@ -194,7 +215,7 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 
 func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, bool, error) {
 	videoService :=	youtube.NewVideosService(s.getYoutubeService())
-	videosListCall := videoService.List("id,snippet,player,status")
+	videosListCall := videoService.List("id,snippet,player,status,contentDetails")
 	videosListCall.Id(videoId)
 	videosListCall.MaxResults(2)
 	videosListCall.PageToken("")
@@ -223,6 +244,7 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 		Title: item.Snippet.Title,
 		Description: item.Snippet.Description,
 		PublishdAt: item.Snippet.PublishedAt,
+		Duration: item.ContentDetails.Duration,
 		ThumbnailDefaultUrl: item.Snippet.Thumbnails.Default.Url,
 		ThumbnailDefaultWidth: item.Snippet.Thumbnails.Default.Width,
 		ThumbnailDefaultHeight: item.Snippet.Thumbnails.Default.Height,
@@ -246,6 +268,8 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 	// search new videos
         searchService := youtube.NewSearchService(s.getYoutubeService())
         pageToken := ""
+	publishedAfter := time.Now().UTC().AddDate(0, 0, -30).Format(time.RFC3339)
+	var foundVideos int64
         for loop := s.maxVideos; loop > 0; loop -= 50{
 		maxResults := loop
 		if maxResults > 50 {
@@ -267,10 +291,12 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
                 searchListCall.VideoLicense("any")
                 searchListCall.VideoSyndicated("any")
                 searchListCall.VideoType("any")
+		searchListCall.PublishedAfter(publishedAfter)
                 searchListResponse, err := searchListCall.Do()
                 if err != nil {
 			return errors.Wrapf(err, "can not do search list call (channelId = %v)", channel.ChannelId)
                 }
+		foundVideos += (int64)(len(searchListResponse.Items))
                 for _, item := range searchListResponse.Items {
 			video, ok, err := s.databaseOperator.GetVideoByVideoId(item.Id.VideoId)
 			if err != nil {
@@ -333,9 +359,9 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
                 break
         }
 	// delete old videos
-	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, s.maxVideos)
+	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, foundVideos)
 	if err != nil {
-		return errors.Wrapf(err, "can not get old videos (channelId = %v, maxVideos = %vv)", channel.ChannelId, s.maxVideos)
+		return errors.Wrapf(err, "can not get old videos (channelId = %v, foundVideos = %vv)", channel.ChannelId, foundVideos)
 	}
 	for _, video := range videos {
 		err := s.databaseOperator.DeleteVideoByVideoId(video.VideoId)

@@ -44,6 +44,7 @@ type Video struct {
 	Title                  string
 	Description            string
 	PublishdAt             string
+	Duration               string
 	ThumbnailDefaultUrl    string
 	ThumbnailDefaultWidth  int64
 	ThumbnailDefaultHeight int64
@@ -504,6 +505,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
                 title,
                 description,
                 publishdAt,
+                duration,
                 thumbnailDefaultUrl,
                 thumbnailDefaultWidth,
                 thumbnailDefaultHeight,
@@ -522,7 +524,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-		?, ?, ?
+		?, ?, ?, ?
             )`,
 	    video.VideoId,
 	    video.Etag,
@@ -532,6 +534,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
 	    video.Title,
 	    video.Description,
 	    video.PublishdAt,
+	    video.Duration,
 	    video.ThumbnailDefaultUrl,
 	    video.ThumbnailDefaultWidth,
 	    video.ThumbnailDefaultHeight,
@@ -582,6 +585,7 @@ func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string, of
                     &video.Title,
                     &video.Description,
                     &video.PublishdAt,
+                    &video.Duration,
                     &video.ThumbnailDefaultUrl,
                     &video.ThumbnailDefaultWidth,
                     &video.ThumbnailDefaultHeight,
@@ -625,6 +629,7 @@ func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, err
                     &video.Title,
                     &video.Description,
                     &video.PublishdAt,
+                    &video.Duration,
                     &video.ThumbnailDefaultUrl,
                     &video.ThumbnailDefaultWidth,
                     &video.ThumbnailDefaultHeight,
@@ -667,6 +672,7 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*Video, bool, erro
                     &video.Title,
                     &video.Description,
                     &video.PublishdAt,
+                    &video.Duration,
                     &video.ThumbnailDefaultUrl,
                     &video.ThumbnailDefaultWidth,
                     &video.ThumbnailDefaultHeight,
@@ -892,6 +898,7 @@ func (d *DatabaseOperator) createTables() (error) {
                 title                  TEXT NOT NULL,
                 description            TEXT NOT NULL,
 		publishdAt             TEXT NOT NULL,
+		duration               TEXT NOT NULL,
 		thumbnailDefaultUrl    TEXT NOT NULL,
 		thumbnailDefaultWidth  INTEGER NOT NULL,
 		thumbnailDefaultHeight INTEGER NOT NULL,
