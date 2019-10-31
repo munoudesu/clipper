@@ -44,6 +44,7 @@ sudo systemctl start clipper.service
 ### youtube_data_api_key_file
 - 1行に１つapi keyを書きます。
 - 複数のapi keyを書いた場合はローテーションしながら使われます。
+- パーミッションは600にしてください
 ```
 <api key1>
 <api key2>
