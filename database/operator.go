@@ -36,30 +36,35 @@ type Channel struct{
 }
 
 type Video struct {
-	VideoId                string
-	Etag                   string
-	Name                   string
-	ChannelId              string
-	ChannelTitle           string
-	Title                  string
-	Description            string
-	PublishdAt             string
-	Duration               string
-	ThumbnailDefaultUrl    string
-	ThumbnailDefaultWidth  int64
-	ThumbnailDefaultHeight int64
-	ThumbnailHighUrl       string
-	ThumbnailHighWidth     int64
-	ThumbnailHighHeight    int64
-	ThumbnailMediumUrl     string
-	ThumbnailMediumWidth   int64
-	ThumbnailMediumHeight  int64
-	EmbedHeight            int64
-	EmbedWidth             int64
-	EmbedHtml              string
-        StatusUploadStatus     string
-        StatusEmbeddable       bool
-	ResponseEtag           string
+	VideoId                      string
+	Etag                         string
+	Name                         string
+	ChannelId                    string
+	ChannelTitle                 string
+	Title                        string
+	Description                  string
+	PublishdAt                   string
+	Duration                     string
+        LiveStreamActiveLiveChatId   string
+        LiveStreamActualStartTime    string
+        LiveStreamActualEndTime      string
+        LiveStreamScheduledStartTime string
+        LiveStreamScheduledEndTime   string
+	ThumbnailDefaultUrl          string
+	ThumbnailDefaultWidth        int64
+	ThumbnailDefaultHeight       int64
+	ThumbnailHighUrl             string
+	ThumbnailHighWidth           int64
+	ThumbnailHighHeight          int64
+	ThumbnailMediumUrl           string
+	ThumbnailMediumWidth         int64
+	ThumbnailMediumHeight        int64
+	EmbedHeight                  int64
+	EmbedWidth                   int64
+	EmbedHtml                    string
+        StatusUploadStatus           string
+        StatusEmbeddable             bool
+	ResponseEtag                 string
 }
 
 type CommentThread struct {
@@ -506,6 +511,11 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
                 description,
                 publishdAt,
                 duration,
+                liveStreamActiveLiveChatId,
+                liveStreamActualStartTime,
+                liveStreamActualEndTime,
+                liveStreamScheduledStartTime,
+                liveStreamScheduledEndTime,
                 thumbnailDefaultUrl,
                 thumbnailDefaultWidth,
                 thumbnailDefaultHeight,
@@ -524,7 +534,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-		?, ?, ?, ?
+		?, ?, ?, ?, ?, ?, ?, ?, ?
             )`,
 	    video.VideoId,
 	    video.Etag,
@@ -535,6 +545,11 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
 	    video.Description,
 	    video.PublishdAt,
 	    video.Duration,
+            video.LiveStreamActiveLiveChatId,
+            video.LiveStreamActualStartTime,
+            video.LiveStreamActualEndTime,
+            video.LiveStreamScheduledStartTime,
+            video.LiveStreamScheduledEndTime,
 	    video.ThumbnailDefaultUrl,
 	    video.ThumbnailDefaultWidth,
 	    video.ThumbnailDefaultHeight,
@@ -586,6 +601,11 @@ func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string, of
                     &video.Description,
                     &video.PublishdAt,
                     &video.Duration,
+                    &video.LiveStreamActiveLiveChatId,
+                    &video.LiveStreamActualStartTime,
+                    &video.LiveStreamActualEndTime,
+                    &video.LiveStreamScheduledStartTime,
+                    &video.LiveStreamScheduledEndTime,
                     &video.ThumbnailDefaultUrl,
                     &video.ThumbnailDefaultWidth,
                     &video.ThumbnailDefaultHeight,
@@ -630,6 +650,11 @@ func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, err
                     &video.Description,
                     &video.PublishdAt,
                     &video.Duration,
+                    &video.LiveStreamActiveLiveChatId,
+                    &video.LiveStreamActualStartTime,
+                    &video.LiveStreamActualEndTime,
+                    &video.LiveStreamScheduledStartTime,
+                    &video.LiveStreamScheduledEndTime,
                     &video.ThumbnailDefaultUrl,
                     &video.ThumbnailDefaultWidth,
                     &video.ThumbnailDefaultHeight,
@@ -673,6 +698,11 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*Video, bool, erro
                     &video.Description,
                     &video.PublishdAt,
                     &video.Duration,
+                    &video.LiveStreamActiveLiveChatId,
+                    &video.LiveStreamActualStartTime,
+                    &video.LiveStreamActualEndTime,
+                    &video.LiveStreamScheduledStartTime,
+                    &video.LiveStreamScheduledEndTime,
                     &video.ThumbnailDefaultUrl,
                     &video.ThumbnailDefaultWidth,
                     &video.ThumbnailDefaultHeight,
@@ -890,30 +920,35 @@ func (d *DatabaseOperator) createTables() (error) {
 
         videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS video (
-                videoId                TEXT PRIMARY KEY,
-                etag                   TEXT NOT NULL,
-                name                   TEXT NOT NULL,
-                channelId              TEXT NOT NULL,
-                channelTitle           TEXT NOT NULL,
-                title                  TEXT NOT NULL,
-                description            TEXT NOT NULL,
-		publishdAt             TEXT NOT NULL,
-		duration               TEXT NOT NULL,
-		thumbnailDefaultUrl    TEXT NOT NULL,
-		thumbnailDefaultWidth  INTEGER NOT NULL,
-		thumbnailDefaultHeight INTEGER NOT NULL,
-		thumbnailHighUrl       TEXT NOT NULL,
-		thumbnailHighWidth     INTEGER NOT NULL,
-		thumbnailHighHeight    INTEGER NOT NULL,
-		thumbnailMediumUrl     TEXT NOT NULL,
-		thumbnailMediumWidth   INTEGER NOT NULL,
-		thumbnailMediumHeight  INTEGER NOT NULL,
-		embedHeight            INTEGER NOT NULL,
-		embedWidth             INTEGER NOT NULL,
-		embedHtml              TEXT NOT NULL,
-                statusUploadStatus     TEXT NOT NULL,
-                statusEmbeddable       INTEGER NOT NULL,
-		responseEtag           TEXT NOT NULL
+                videoId                      TEXT PRIMARY KEY,
+                etag                         TEXT NOT NULL,
+                name                         TEXT NOT NULL,
+                channelId                    TEXT NOT NULL,
+                channelTitle                 TEXT NOT NULL,
+                title                        TEXT NOT NULL,
+                description                  TEXT NOT NULL,
+		publishdAt                   TEXT NOT NULL,
+		duration                     TEXT NOT NULL,
+                liveStreamActiveLiveChatId   TEXT NOT NULL,
+                liveStreamActualStartTime    TEXT NOT NULL,
+                liveStreamActualEndTime      TEXT NOT NULL,
+                liveStreamScheduledStartTime TEXT NOT NULL, 
+                liveStreamScheduledEndTime   TEXT NOT NULL,
+		thumbnailDefaultUrl          TEXT NOT NULL,
+		thumbnailDefaultWidth        INTEGER NOT NULL,
+		thumbnailDefaultHeight       INTEGER NOT NULL,
+		thumbnailHighUrl             TEXT NOT NULL,
+		thumbnailHighWidth           INTEGER NOT NULL,
+		thumbnailHighHeight          INTEGER NOT NULL,
+		thumbnailMediumUrl           TEXT NOT NULL,
+		thumbnailMediumWidth         INTEGER NOT NULL,
+		thumbnailMediumHeight        INTEGER NOT NULL,
+		embedHeight                  INTEGER NOT NULL,
+		embedWidth                   INTEGER NOT NULL,
+		embedHtml                    TEXT NOT NULL,
+                statusUploadStatus           TEXT NOT NULL,
+                statusEmbeddable             INTEGER NOT NULL,
+		responseEtag                 TEXT NOT NULL
 	)`
 	_, err = d.db.Exec(videoTableCreateQuery);
 	if  err != nil {

@@ -215,7 +215,7 @@ func (s *Searcher)searchCommentThreadsByVideo(video *database.Video, checkModifi
 
 func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag string) (*database.Video, bool, bool, error) {
 	videoService :=	youtube.NewVideosService(s.getYoutubeService())
-	videosListCall := videoService.List("id,snippet,player,status,contentDetails")
+	videosListCall := videoService.List("id,snippet,player,status,contentDetails,liveStreamingDetails")
 	videosListCall.Id(videoId)
 	videosListCall.MaxResults(2)
 	videosListCall.PageToken("")
@@ -260,6 +260,27 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 		StatusUploadStatus: item.Status.UploadStatus,
 		StatusEmbeddable : item.Status.Embeddable,
 		ResponseEtag: videoListResponse.Etag,
+	}
+	if item.LiveStreamingDetails != nil {
+		if s.verbose {
+			if item.LiveStreamingDetails.ActiveLiveChatId == "" {
+				log.Printf("no ActiveLiveChatId")
+			}
+		}
+		video.LiveStreamActiveLiveChatId = item.LiveStreamingDetails.ActiveLiveChatId
+		video.LiveStreamActualStartTime = item.LiveStreamingDetails.ActualStartTime
+		video.LiveStreamActualEndTime = item.LiveStreamingDetails.ActualEndTime
+		video.LiveStreamScheduledStartTime = item.LiveStreamingDetails.ScheduledStartTime
+		video.LiveStreamScheduledEndTime = item.LiveStreamingDetails.ScheduledEndTime
+	} else {
+		if s.verbose {
+			log.Printf("no LiveStreamingDetails")
+		}
+		video.LiveStreamActiveLiveChatId = ""
+		video.LiveStreamActualStartTime = ""
+		video.LiveStreamActualEndTime = ""
+		video.LiveStreamScheduledStartTime = ""
+		video.LiveStreamScheduledEndTime = ""
 	}
 	return video, false, false, nil
 }
