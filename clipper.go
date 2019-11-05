@@ -68,20 +68,21 @@ type clipperConfig struct {
 }
 
 type commandArguments struct {
-	configFile           string
-	verbose              bool
-	searchChannel        bool
-	searchVideo          bool
-	searchComment        bool
-	checkChannelModified bool
-	checkVideoModified   bool
-	checkCommentModified bool
-	skipSearch           bool
-	skipBuild            bool
-	skipNotify           bool
-	rebuild              bool
-	renotify             bool
-	runMode              string
+	configFile             string
+	verbose                bool
+	searchChannel          bool
+	searchVideo            bool
+	searchComment          bool
+	collectLiveChatComment bool
+	checkChannelModified   bool
+	checkVideoModified     bool
+	checkCommentModified   bool
+	skipSearch             bool
+	skipBuild              bool
+	skipNotify             bool
+	rebuild                bool
+	renotify               bool
+	runMode                string
 }
 
 func verboseLoadedConfig(verbose bool, loadedConfig *clipperConfig) {
@@ -124,7 +125,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 			log.Printf("can not create searcher of youtube: %v", err)
 			os.Exit(1)
 		}
-		err = youtubeSearcher.Search(cmdArgs.searchChannel, cmdArgs.searchVideo, cmdArgs.searchComment, cmdArgs.checkChannelModified, cmdArgs.checkVideoModified, cmdArgs.checkCommentModified)
+		err = youtubeSearcher.Search(cmdArgs.searchChannel, cmdArgs.searchVideo, cmdArgs.searchComment, cmdArgs.collectLiveChatComment, cmdArgs.checkChannelModified, cmdArgs.checkVideoModified, cmdArgs.checkCommentModified)
 		if err != nil {
 			log.Printf("can not search youtube: %v", err)
 			os.Exit(1)
@@ -187,6 +188,7 @@ func main() {
 	flag.BoolVar(&cmdArgs.searchChannel, "searchChannel", true, "search channel")
 	flag.BoolVar(&cmdArgs.searchVideo, "searchVideo", true, "search video")
 	flag.BoolVar(&cmdArgs.searchComment, "searchComment", true, "search comment")
+	flag.BoolVar(&cmdArgs.collectLiveChatComment, "collectLiveChatComment", true, "collect live chat comment")
 	flag.BoolVar(&cmdArgs.checkChannelModified, "checkChannelModified", true, "check channel modified")
 	flag.BoolVar(&cmdArgs.checkVideoModified, "checkVideoModified", true, "check video modified")
 	flag.BoolVar(&cmdArgs.checkCommentModified, "checkCommentModified", true, "check comment modified")

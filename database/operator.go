@@ -113,6 +113,17 @@ type ReplyComment struct {
 
 type CommonComment ReplyComment
 
+type LiveChatComment struct {
+	UniqueId      string
+	VideoId       string
+	ClientId      string
+	ChatId        string
+	AuthorName    string
+	TimestampUsec string
+	TimestampText string
+	Text          string
+}
+
 type ChannelPage struct {
 	ChannelId  string
 	Sha1Digest string

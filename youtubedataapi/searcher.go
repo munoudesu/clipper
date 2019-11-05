@@ -506,7 +506,7 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 	return nil
 }
 
-func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment bool, checkChannelModified bool, checkVideoModified bool, checkCommentModified bool) (error) {
+func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment bool, collectLiveChatComment bool, checkChannelModified bool, checkVideoModified bool, checkCommentModified bool) (error) {
 	for _, channel := range s.channels {
 		if searchChannel {
 			err := s.searchChannelByChannelId(channel.Name, channel.ChannelId, checkChannelModified)
@@ -535,6 +535,25 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 				err := s.searchCommentThreadsByVideo(video, checkCommentModified)
 				if err != nil {
 					return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
+				}
+			}
+		}
+		if collectLiveChatComment {
+			videos, err := s.databaseOperator.GetVideosByChannelId(channel.ChannelId)
+			if err != nil {
+				return errors.Wrapf(err, "can not get videos from database")
+			}
+			for _, video := range videos {
+				if !video.StatusEmbeddable {
+					if s.verbose {
+						log.Printf("skip get comment because unembeddable video (videoId = %v)", video.VideoId)
+					}
+					continue
+				}
+				liveChatCollector := NewLiveChatCollector(video.VideoId, s.databaseOperator, s.verbose)
+				err := liveChatCollector.Collect()
+				if err != nil {
+					return errors.Wrapf(err, "can not collect live chat comments by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
 				}
 			}
 		}
