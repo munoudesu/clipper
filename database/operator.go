@@ -133,6 +133,23 @@ type ChannelPage struct {
 	TweetId    int64
 }
 
+func (d *DatabaseOperator) DeleteLiveChatCommentsByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM liveChatComment WHERE videoId = ?`, videoId)
+        if err != nil {
+                return errors.Wrap(err, "can not delete liveChatComments")
+        }
+        // 削除処理の結果から削除されたレコード数を取得
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+                return errors.Wrap(err, "can not get rowsAffected of liveChatComment")
+        }
+	if d.verbose {
+		log.Printf("delete liveChatComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+	}
+
+        return nil
+}
+
 func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatComment) (error) {
 	for _, liveChatComment := range liveChatComments {
 		res, err := d.db.Exec(
@@ -149,7 +166,7 @@ func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatCo
 			text
 		    ) VALUES (
 			?, ?, ?, ?, ?,
-			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?
 		    )`,
 		    liveChatComment.UniqueId,
 		    liveChatComment.ChannelId,
@@ -253,6 +270,7 @@ func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) 
 
         return nil
 }
+
 func (d *DatabaseOperator) DeleteTopLevelCommentsByVideoId(videoId string) (error) {
 	res, err := d.db.Exec(`DELETE FROM topLevelComment WHERE videoId = ?`, videoId)
         if err != nil {

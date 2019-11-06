@@ -401,6 +401,10 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 		if err != nil {
 			return errors.Wrapf(err, "can not delete old replyComments (videoId = %vv)", video.VideoId)
 		}
+		err = s.databaseOperator.DeleteLiveChatCommentsByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old liveChatComments (videoId = %vv)", video.VideoId)
+		}
 	}
 	return nil
 }
