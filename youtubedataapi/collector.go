@@ -96,6 +96,7 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 	err := chromedp.Run(ctx3, chromedp.Tasks{
 		chromedp.Navigate(url),
 		chromedp.Nodes(`body>script`, &scripts, chromedp.ByQueryAll),
+		chromedp.WaitVisible("#contents", chromedp.ByID),
 		chromedp.ActionFunc(func(ctx context.Context) (error) {
 			for _, script := range scripts {
 				if script.ChildNodeCount == 0 {
@@ -143,21 +144,23 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 			if len(action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
 				authorPhotoUrl = action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails[0].URL
 			}
+			var text string
 			for _, run := range action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
-				liveChatComment := &database.LiveChatComment{
-					UniqueId: l.videoId + "." + clientId + "." + id + "." + timestampUsec,
-					ChannelId: l.channelId,
-					VideoId: l.videoId,
-					ClientId: clientId,
-					CommentId: id,
-					TimestampAt: l.timestampUsecToISO8601(timestampUsec),
-					TimestampText: timestampText,
-					AuthorName: authorName,
-					AuthorPhotoUrl: authorPhotoUrl,
-					Text: run.Text,
-				}
-				l.liveChatComments = append(l.liveChatComments, liveChatComment)
+				text += run.Text
 			}
+			liveChatComment := &database.LiveChatComment{
+				UniqueId: l.videoId + "." + clientId + "." + id + "." + timestampUsec,
+				ChannelId: l.channelId,
+				VideoId: l.videoId,
+				ClientId: clientId,
+				CommentId: id,
+				TimestampAt: l.timestampUsecToISO8601(timestampUsec),
+				TimestampText: timestampText,
+				AuthorName: authorName,
+				AuthorPhotoUrl: authorPhotoUrl,
+				Text: text,
+			}
+			l.liveChatComments = append(l.liveChatComments, liveChatComment)
 		}
 	}
 	if nextId == "" {
@@ -192,8 +195,9 @@ func (l *LiveCharCollector)Collect() (error) {
 	for {
 		retry := 0
 		for {
-			nextUrl, err = l.getLiveChat(nextUrl)
+			url, err := l.getLiveChat(nextUrl)
 			if err == nil {
+				nextUrl = url
 				break
 			}
 			retry += 1

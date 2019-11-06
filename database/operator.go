@@ -151,8 +151,18 @@ func (d *DatabaseOperator) DeleteLiveChatCommentsByVideoId(videoId string) (erro
 }
 
 func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatComment) (error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "can not start transaction in update live chat")
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		}
+	}()
 	for _, liveChatComment := range liveChatComments {
-		res, err := d.db.Exec(
+		res, err := tx.Exec(
 		    `INSERT OR REPLACE INTO liveChatComment (
 			uniqueId,
 			channelId,
@@ -180,17 +190,20 @@ func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatCo
 		    liveChatComment.Text,
 		)
 		if err != nil {
+		        tx.Rollback()
 			return errors.Wrap(err, "can not insert liveChatComment")
 		}
 		// 挿入処理の結果からIDを取得
 		id, err := res.LastInsertId()
 		if err != nil {
+		        tx.Rollback()
 			return errors.Wrap(err, "can not get insert id of liveChatComment")
 		}
 		if d.verbose {
 			log.Printf("update live chat comment (commentId = %v, insert id = %v)", liveChatComment.CommentId, id)
 		}
 	}
+	tx.Commit()
 	return nil
 }
 
@@ -305,9 +318,9 @@ func (d *DatabaseOperator) DeleteCommentThreadsByVideoId(videoId string) (error)
         return nil
 }
 
-func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (error) {
+func (d *DatabaseOperator) updateReplyComments(tx *sql.Tx, replyComments []*ReplyComment) (error) {
 	for _, replyComment := range replyComments {
-		res, err := d.db.Exec(
+		res, err := tx.Exec(
 		    `INSERT OR REPLACE INTO replyComment (
 			commentId,
 			etag,
@@ -355,12 +368,11 @@ func (d *DatabaseOperator) updateReplyComments(replyComments []*ReplyComment) (e
 			log.Printf("update reply comment (commentId = %v, insert id = %v)", replyComment.CommentId, id)
 		}
 	}
-
 	return nil
 }
 
-func (d *DatabaseOperator) updateTopLevelComment(topLevelComment *TopLevelComment) (error) {
-	res, err := d.db.Exec(
+func (d *DatabaseOperator) updateTopLevelComment(tx *sql.Tx, topLevelComment *TopLevelComment) (error) {
+	res, err := tx.Exec(
             `INSERT OR REPLACE INTO topLevelComment (
                 commentId,
                 etag,
@@ -405,12 +417,21 @@ func (d *DatabaseOperator) updateTopLevelComment(topLevelComment *TopLevelCommen
 	if d.verbose {
 		log.Printf("update top level comment (commentId = %v, insert id = %v)", topLevelComment.CommentId, id)
 	}
-
         return nil
 }
 
 func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (error) {
-	res, err := d.db.Exec(
+        tx, err := d.db.Begin()
+        if err != nil {
+                return errors.Wrap(err, "can not start transaction in update reply comment")
+        }
+        defer func() {
+                if p := recover(); p != nil {
+                        tx.Rollback()
+                        panic(p)
+                }
+        }()
+	res, err := tx.Exec(
             `INSERT OR REPLACE INTO commentThread (
                 commentThreadId,
                 etag,
@@ -429,25 +450,29 @@ func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (er
 	    commentThread.ResponseEtag,
         )
         if err != nil {
+                tx.Rollback()
                 return errors.Wrap(err, "can not insert commentThread")
         }
         // 挿入処理の結果からIDを取得
         id, err := res.LastInsertId()
         if err != nil {
+                tx.Rollback()
                 return errors.Wrap(err, "can not get insert id of commentThread")
         }
 	if d.verbose {
 		log.Printf("update comment thread (commentThreadId = %v, insert id = %v)", commentThread.CommentThreadId, id)
 	}
-	err = d.updateTopLevelComment(commentThread.TopLevelComment)
+	err = d.updateTopLevelComment(tx, commentThread.TopLevelComment)
 	if err != nil {
+                tx.Rollback()
                 return errors.Wrap(err, "can not update topLevelComment")
 	}
-	err = d.updateReplyComments(commentThread.ReplyComments)
+	err = d.updateReplyComments(tx, commentThread.ReplyComments)
 	if err != nil {
+                tx.Rollback()
                 return errors.Wrap(err, "can not update replayComments")
 	}
-
+        tx.Commit()
         return nil
 }
 
@@ -1162,6 +1187,16 @@ func (d *DatabaseOperator) createTables() (error) {
 	_, err = d.db.Exec(liveChatCommentTableCreateQuery);
 	if  err != nil {
 		return errors.Wrap(err, "can not create liveChatComment table")
+	}
+        liveChatCommentVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_videoId_index ON liveChatComment(videoId)`
+	_, err = d.db.Exec(liveChatCommentVideoIdIndexQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create liveChatComment_videoId_index index")
+	}
+        liveChatCommentChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_channelId_index ON liveChatComment(channelId)`
+	_, err = d.db.Exec(liveChatCommentChannelIdIndexQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create liveChatComment_channelId_index index")
 	}
 
         channelPageTableCreateQuery := `
