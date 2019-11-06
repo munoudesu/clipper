@@ -2,6 +2,8 @@ package youtubedataapi
 
 
 import (
+	"time"
+	"strconv"
 	"encoding/json"
 	"strings"
 	"log"
@@ -18,14 +20,29 @@ import (
 )
 
 type LiveCharCollector struct {
+	channelId        string
 	videoId          string
 	liveChatComments []*database.LiveChatComment
-	databaseOperator   *database.DatabaseOperator
-	verbose            bool
+	databaseOperator *database.DatabaseOperator
+	verbose          bool
+}
+
+func (l *LiveCharCollector)timestampUsecToISO8601(timestampUsec string) (string) {
+        t := time.Time{}
+        ts, err := strconv.ParseInt(timestampUsec, 10, 64)
+        if err == nil  {
+                sec := ts / 1000000
+                nsec := (ts % 1000000) * 1000
+                t = time.Unix(sec, nsec)
+        }
+        return t.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
 func (l *LiveCharCollector)getVideoPage() ([]byte, error) {
 	url := "https://www.youtube.com/watch?v=" + l.videoId
+	if l.verbose {
+		log.Printf("retrive url = %v", url)
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not create http request (url = %v)", url)
@@ -67,13 +84,15 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 		log.Printf("live chat replay url = %v", url)
 	}
 	opts := append(chromedp.DefaultExecAllocatorOptions[:], )
-	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	defer cancel()
-	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
-	defer cancel()
+	ctx1, cancel1 := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel1()
+	ctx2, cancel2 := chromedp.NewContext(ctx1, chromedp.WithLogf(log.Printf))
+	defer cancel2()
+	ctx3, cancel3 := context.WithTimeout(ctx2, 120 * time.Second)
+	defer cancel3()
 	var scripts []*cdp.Node
 	var html string
-	err := chromedp.Run(ctx, chromedp.Tasks{
+	err := chromedp.Run(ctx3, chromedp.Tasks{
 		chromedp.Navigate(url),
 		chromedp.Nodes(`body>script`, &scripts, chromedp.ByQueryAll),
 		chromedp.ActionFunc(func(ctx context.Context) (error) {
@@ -111,6 +130,9 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 	if len(ytInitialData.ContinuationContents.LiveChatContinuation.Continuations) >= 2 {
 		nextId = ytInitialData.ContinuationContents.LiveChatContinuation.Continuations[0].LiveChatReplayContinuationData.Continuation
 	}
+	if l.verbose {
+		log.Printf("nextId = %v", nextId)
+	}
 	for _, action1 := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
 		for _, action2 := range action1.ReplayChatItemAction.Actions {
 			clientId := action2.AddChatItemAction.ClientID
@@ -118,15 +140,21 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 			timestampUsec := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
 			timestampText := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText
 			authorName := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText
+			authorPhotoUrl := ""
+			if len(action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
+				authorPhotoUrl = action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails[0].URL
+			}
 			for _, run := range action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
 				liveChatComment := &database.LiveChatComment{
 					UniqueId: l.videoId + "." + clientId + "." + id + "." + timestampUsec,
+					ChannelId: l.channelId,
 					VideoId: l.videoId,
 					ClientId: clientId,
-					ChatId: id,
-					TimestampUsec: timestampUsec,
+					CommentId: id,
+					TimestampAt: l.timestampUsecToISO8601(timestampUsec),
 					TimestampText: timestampText,
 					AuthorName: authorName,
+					AuthorPhotoUrl: authorPhotoUrl,
 					Text: run.Text,
 				}
 				l.liveChatComments = append(l.liveChatComments, liveChatComment)
@@ -140,44 +168,48 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 }
 
 func (l *LiveCharCollector)Collect() (error) {
+	liveChatComments, err := l.databaseOperator.GetLiveChatCommentsByVideoId(l.videoId)
+	if err != nil {
+		return errors.Wrapf(err, "can not get live chat from database (videoId = %v)", l.videoId)
+	}
+	if len(liveChatComments) > 0 {
+		if l.verbose {
+			log.Printf("already exists live chat in database (videoId = %v)", l.videoId)
+		}
+		return nil
+	}
 	body, err := l.getVideoPage()
 	if err != nil {
 		return errors.Wrapf(err, "can not get video page (videoId = %v)", l.videoId)
 	}
 	firstLiveChatReplayUrl, err := l.getFirstLiveChatReplayUrl(body)
 	if err != nil {
-		return errors.Wrapf(err, "can not get first live char replay url (videoId = %v)", l.videoId)
+		return errors.Wrapf(err, "can not get first live chat replay url (videoId = %v)", l.videoId)
 	}
 	if l.verbose {
 		log.Printf("first live chat replay url = %v", firstLiveChatReplayUrl)
 	}
 	nextUrl := firstLiveChatReplayUrl
 	for {
-		nextUrl, err := l.getLiveChat(nextUrl)
+		nextUrl, err = l.getLiveChat(nextUrl)
 		if err != nil {
-			return errors.Wrapf(err, "can not get live chats (videoId = %v)", l.videoId)
+			return errors.Wrapf(err, "can not get live chat (videoId = %v)", l.videoId)
 		}
 		if nextUrl == "" {
 			break
 		}
 	}
-	for _, liveChatComment := range l.liveChatComments {
-		log.Printf("%v, %v, %v, %v, %v, %v, %v",
-			liveChatComment.UniqueId,
-			liveChatComment.VideoId,
-			liveChatComment.ClientId,
-			liveChatComment.ChatId,
-			liveChatComment.AuthorName,
-			liveChatComment.TimestampUsec,
-			liveChatComment.TimestampText,
-			liveChatComment.Text)
+	err = l.databaseOperator.UpdateLiveChatComments(l.liveChatComments)
+	if err != nil {
+		return errors.Wrapf(err, "can not update live chat (videoId = %v)", l.videoId)
 	}
 	return nil
 }
 
-func NewLiveChatCollector(videoId string, databaseOperator *database.DatabaseOperator, verbose bool) (*LiveCharCollector) {
+func NewLiveChatCollector(video *database.Video, databaseOperator *database.DatabaseOperator, verbose bool) (*LiveCharCollector) {
 	return &LiveCharCollector {
-		videoId:          videoId,
+		channelId:        video.ChannelId,
+		videoId:          video.VideoId,
 		liveChatComments: make([]*database.LiveChatComment, 0, 1000),
 		databaseOperator: databaseOperator,
 		verbose: verbose,

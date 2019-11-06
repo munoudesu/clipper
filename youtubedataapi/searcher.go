@@ -550,7 +550,7 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 					}
 					continue
 				}
-				liveChatCollector := NewLiveChatCollector(video.VideoId, s.databaseOperator, s.verbose)
+				liveChatCollector := NewLiveChatCollector(video, s.databaseOperator, s.verbose)
 				err := liveChatCollector.Collect()
 				if err != nil {
 					return errors.Wrapf(err, "can not collect live chat comments by video (neme = %v, videoId = %v)", video.Name, video.VideoId)

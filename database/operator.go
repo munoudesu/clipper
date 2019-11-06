@@ -114,14 +114,16 @@ type ReplyComment struct {
 type CommonComment ReplyComment
 
 type LiveChatComment struct {
-	UniqueId      string
-	VideoId       string
-	ClientId      string
-	ChatId        string
-	AuthorName    string
-	TimestampUsec string
-	TimestampText string
-	Text          string
+	UniqueId       string
+	ChannelId      string
+	VideoId        string
+	ClientId       string
+	CommentId      string
+	TimestampAt    string
+	TimestampText  string
+	AuthorName     string
+	AuthorPhotoUrl string
+	Text           string
 }
 
 type ChannelPage struct {
@@ -129,6 +131,110 @@ type ChannelPage struct {
 	Sha1Digest string
 	Dirty      int64
 	TweetId    int64
+}
+
+func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatComment) (error) {
+	for _, liveChatComment := range liveChatComments {
+		res, err := d.db.Exec(
+		    `INSERT OR REPLACE INTO liveChatComment (
+			uniqueId,
+			channelId,
+			videoId,
+			clientId,
+			commentId,
+			authorName,
+			authorPhotoUrl,
+			timestampAt,
+			timestampText,
+			text
+		    ) VALUES (
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?,
+		    )`,
+		    liveChatComment.UniqueId,
+		    liveChatComment.ChannelId,
+		    liveChatComment.VideoId,
+		    liveChatComment.ClientId,
+		    liveChatComment.CommentId,
+		    liveChatComment.AuthorName,
+		    liveChatComment.AuthorPhotoUrl,
+		    liveChatComment.TimestampAt,
+		    liveChatComment.TimestampText,
+		    liveChatComment.Text,
+		)
+		if err != nil {
+			return errors.Wrap(err, "can not insert liveChatComment")
+		}
+		// 挿入処理の結果からIDを取得
+		id, err := res.LastInsertId()
+		if err != nil {
+			return errors.Wrap(err, "can not get insert id of liveChatComment")
+		}
+		if d.verbose {
+			log.Printf("update live chat comment (commentId = %v, insert id = %v)", liveChatComment.CommentId, id)
+		}
+	}
+	return nil
+}
+
+func (d *DatabaseOperator) GetLiveChatCommentsByChannelId(channelId string) ([]*LiveChatComment, error) {
+	liveChatComments := make([]*LiveChatComment, 0)
+        liveChatCommentRows, err := d.db.Query(`SELECT * FROM liveChatComment Where channelId = ?`, channelId)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get liveChatComment by channelId from database")
+        }
+        defer liveChatCommentRows.Close()
+        for liveChatCommentRows.Next() {
+                liveChatComment := &LiveChatComment{}
+                // カーソルから値を取得
+                err := liveChatCommentRows.Scan(
+                    &liveChatComment.UniqueId,
+                    &liveChatComment.ChannelId,
+                    &liveChatComment.VideoId,
+                    &liveChatComment.ClientId,
+                    &liveChatComment.CommentId,
+                    &liveChatComment.AuthorName,
+                    &liveChatComment.AuthorPhotoUrl,
+                    &liveChatComment.TimestampAt,
+                    &liveChatComment.TimestampText,
+                    &liveChatComment.Text,
+                )
+                if err != nil {
+                        return nil, errors.Wrap(err, "can not scan liveChatComment by channelId from database")
+                }
+		liveChatComments = append(liveChatComments, liveChatComment)
+        }
+        return liveChatComments, nil
+}
+
+func (d *DatabaseOperator) GetLiveChatCommentsByVideoId(videoId string) ([]*LiveChatComment, error) {
+	liveChatComments := make([]*LiveChatComment, 0)
+        liveChatCommentRows, err := d.db.Query(`SELECT * FROM liveChatComment Where videoId = ?`, videoId)
+        if err != nil {
+                return nil, errors.Wrap(err, "can not get liveChatComment by videoId from database")
+        }
+        defer liveChatCommentRows.Close()
+        for liveChatCommentRows.Next() {
+                liveChatComment := &LiveChatComment{}
+                // カーソルから値を取得
+                err := liveChatCommentRows.Scan(
+                    &liveChatComment.UniqueId,
+                    &liveChatComment.ChannelId,
+                    &liveChatComment.VideoId,
+                    &liveChatComment.ClientId,
+                    &liveChatComment.CommentId,
+                    &liveChatComment.AuthorName,
+                    &liveChatComment.AuthorPhotoUrl,
+                    &liveChatComment.TimestampAt,
+                    &liveChatComment.TimestampText,
+                    &liveChatComment.Text,
+                )
+                if err != nil {
+                        return nil, errors.Wrap(err, "can not scan liveChatComment by videoId from database")
+                }
+		liveChatComments = append(liveChatComments, liveChatComment)
+        }
+        return liveChatComments, nil
 }
 
 func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) {
@@ -928,7 +1034,6 @@ func (d *DatabaseOperator) createTables() (error) {
 		return errors.Wrap(err, "can not create channel table")
 	}
 
-
         videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS video (
                 videoId                      TEXT PRIMARY KEY,
@@ -1021,6 +1126,24 @@ func (d *DatabaseOperator) createTables() (error) {
 	_, err = d.db.Exec(replyCommentTableCreateQuery);
 	if  err != nil {
 		return errors.Wrap(err, "can not create replyComment table")
+	}
+
+        liveChatCommentTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS liveChatComment (
+                uniqueId         TEXT PRIMARY KEY,
+		channelId        TEXT NOT NULL,
+		videoId          TEXT NOT NULL,
+		clientId         TEXT NOT NULL,
+		commentId        TEXT NOT NULL, 
+		authorName       TEXT NOT NULL,
+		authorPhotoUrl   TEXT NOT NULL,
+		timestampAt    TEXT NOT NULL,
+		timestampText    TEXT NOT NULL,
+		text             TEXT NOT NULL
+	)`
+	_, err = d.db.Exec(liveChatCommentTableCreateQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create liveChatComment table")
 	}
 
         channelPageTableCreateQuery := `

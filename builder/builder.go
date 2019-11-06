@@ -319,8 +319,8 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				updateAt: comment.UpdateAt,
 				timeRanges: make([]*timeRangeProperty, 0),
 			}
+			idx = len(channelProp.videos)
 			channelProp.videos = append(channelProp.videos, videoProp)
-			idx = len(channelProp.videos) - 1
 			channelProp.videosDupCheckMap[comment.VideoId] = idx
 		}
 		videoProp := channelProp.videos[idx]
@@ -350,6 +350,16 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 		}
 	}
+
+
+
+
+
+
+
+
+
+
 	// sort and adjust
 	sort.Slice(channelProp.videos, func(i, j int) bool {
 		return channelProp.videos[i].updateAt > channelProp.videos[j].updateAt
