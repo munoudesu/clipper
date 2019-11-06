@@ -89,7 +89,7 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 	defer cancel1()
 	ctx2, cancel2 := chromedp.NewContext(ctx1, chromedp.WithLogf(log.Printf))
 	defer cancel2()
-	ctx3, cancel3 := context.WithTimeout(ctx2, 120 * time.Second)
+	ctx3, cancel3 := context.WithTimeout(ctx2, 60 * time.Second)
 	defer cancel3()
 	var scripts []*cdp.Node
 	var yuInitialDataStr string
