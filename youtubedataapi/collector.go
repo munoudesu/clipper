@@ -23,6 +23,7 @@ type LiveCharCollector struct {
 	channelId        string
 	videoId          string
 	liveChatComments []*database.LiveChatComment
+	maxRetry         int
 	databaseOperator *database.DatabaseOperator
 	verbose          bool
 }
@@ -91,7 +92,7 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 	ctx3, cancel3 := context.WithTimeout(ctx2, 120 * time.Second)
 	defer cancel3()
 	var scripts []*cdp.Node
-	var html string
+	var yuInitialDataStr string
 	err := chromedp.Run(ctx3, chromedp.Tasks{
 		chromedp.Navigate(url),
 		chromedp.Nodes(`body>script`, &scripts, chromedp.ByQueryAll),
@@ -101,11 +102,15 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 					continue
 				}
 				if strings.Contains(script.Children[0].NodeValue, "ytInitialData") {
-					var err error
-					html, err = dom.GetOuterHTML().WithNodeID(script.Children[0].NodeID).Do(ctx)
+					html, err := dom.GetOuterHTML().WithNodeID(script.Children[0].NodeID).Do(ctx)
 					if err != nil {
 						return errors.Wrapf(err, "can not get outer html (url = %v)", url)
 					}
+					elems := strings.SplitN(html, "=", 2)
+					if len(elems) < 2 {
+						return errors.Errorf("can not not parse ytInitialData (url = %v, html = %v)", url, html)
+					}
+					yuInitialDataStr = strings.TrimSuffix(strings.TrimSpace(elems[1]), ";")
 					return nil
 				}
 			}
@@ -115,16 +120,10 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "can not navigate (url = %v)", url)
 	}
-	strs := strings.SplitN(html, "=", 2)
-	if len(strs) < 2 {
-		return "", errors.Errorf("not found ytInitialData (url = %v)", url)
-
-	}
-	yuInitialDataStr := strings.TrimSuffix(strings.TrimSpace(strs[1]), ";")
 	var ytInitialData YtInitialData
 	err = json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData)
 	if err != nil {
-		return "", errors.Wrapf(err, "can not parse ytInitialData (url = %v)", url)
+		return "", errors.Wrapf(err, "can not unmarshal ytInitialData (url = %v, yuInitialDataStr = %v)", url, yuInitialDataStr)
 	}
 	var nextId string
 	if len(ytInitialData.ContinuationContents.LiveChatContinuation.Continuations) >= 2 {
@@ -191,9 +190,20 @@ func (l *LiveCharCollector)Collect() (error) {
 	}
 	nextUrl := firstLiveChatReplayUrl
 	for {
-		nextUrl, err = l.getLiveChat(nextUrl)
-		if err != nil {
-			return errors.Wrapf(err, "can not get live chat (videoId = %v)", l.videoId)
+		retry := 0
+		for {
+			nextUrl, err = l.getLiveChat(nextUrl)
+			if err == nil {
+				break
+			}
+			retry += 1
+			if retry < l.maxRetry {
+				log.Printf("can not get live chat (videoId = %v), retry ...: %v", l.videoId, err)
+				time.Sleep(time.Second)
+				continue
+			} else {
+				return errors.Wrapf(err, "can not get live chat (videoId = %v)", l.videoId)
+			}
 		}
 		if nextUrl == "" {
 			break
@@ -211,6 +221,7 @@ func NewLiveChatCollector(video *database.Video, databaseOperator *database.Data
 		channelId:        video.ChannelId,
 		videoId:          video.VideoId,
 		liveChatComments: make([]*database.LiveChatComment, 0, 1000),
+		maxRetry:         10,
 		databaseOperator: databaseOperator,
 		verbose: verbose,
 	}
