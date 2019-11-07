@@ -19,6 +19,7 @@ import (
 type clipperYoutubeConfig struct {
 	ApiKeyFile string                  `toml:"apiKeyFile"`
 	MaxVideos  int64                   `toml:"maxVideos"`
+        Scraping   bool                    `toml:"scraping"`
 	Channels   youtubedataapi.Channels `toml:"channels"`
 }
 
@@ -120,7 +121,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 	}
 	defer databaseOperator.Close()
 	if !cmdArgs.skipSearch {
-		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Channels, databaseOperator, cmdArgs.verbose)
+		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Scraping, conf.Youtube.Channels, databaseOperator, cmdArgs.verbose)
 		if err != nil {
 			log.Printf("can not create searcher of youtube: %v", err)
 			os.Exit(1)

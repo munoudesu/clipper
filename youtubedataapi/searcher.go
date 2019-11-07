@@ -23,6 +23,7 @@ type Channels []*Channel
 type Searcher struct {
 	apiKeys            []string
 	maxVideos          int64
+	scraping           bool
 	channels           Channels
 	ctxs               []context.Context
 	youtubeServices    []*youtube.Service
@@ -554,7 +555,7 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 					}
 					continue
 				}
-				liveChatCollector := NewLiveChatCollector(video, s.databaseOperator, s.verbose)
+				liveChatCollector := NewLiveChatCollector(video, s.scraping, s.databaseOperator, s.verbose)
 				err := liveChatCollector.Collect()
 				if err != nil {
 					return errors.Wrapf(err, "can not collect live chat comments by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
@@ -565,7 +566,7 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 	return nil
 }
 
-func NewSearcher(apiKeys []string, maxVideos int64, channels []*Channel, databaseOperator *database.DatabaseOperator, verbose bool) (*Searcher, error) {
+func NewSearcher(apiKeys []string, maxVideos int64, scraping bool, channels []*Channel, databaseOperator *database.DatabaseOperator, verbose bool) (*Searcher, error) {
 	ctxs := make([]context.Context, 0, len(apiKeys))
 	youtubeServices := make([]*youtube.Service, 0, len(apiKeys))
 	for _, apiKey := range apiKeys {
@@ -580,6 +581,7 @@ func NewSearcher(apiKeys []string, maxVideos int64, channels []*Channel, databas
 	return &Searcher{
 		apiKeys: apiKeys,
 		maxVideos: maxVideos,
+		scraping: scraping,
 		channels: channels,
 		ctxs: ctxs,
 		youtubeServices: youtubeServices,
