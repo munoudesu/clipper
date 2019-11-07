@@ -1,6 +1,5 @@
 package youtubedataapi
 
-
 type YtInitialData struct {
 	ContinuationContents struct {
 		LiveChatContinuation struct {
@@ -10,6 +9,73 @@ type YtInitialData struct {
 						AddChatItemAction struct {
 							ClientID string `json:"clientId"`
 							Item     struct {
+								LiveChatPaidMessageRenderer struct {
+									AuthorExternalChannelID string `json:"authorExternalChannelId"`
+									AuthorName              struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"authorName"`
+									AuthorNameTextColor int64 `json:"authorNameTextColor"`
+									AuthorPhoto         struct {
+										Thumbnails []struct {
+											Height int64  `json:"height"`
+											URL    string `json:"url"`
+											Width  int64  `json:"width"`
+										} `json:"thumbnails"`
+									} `json:"authorPhoto"`
+									BodyBackgroundColor      int64 `json:"bodyBackgroundColor"`
+									BodyTextColor            int64 `json:"bodyTextColor"`
+									ContextMenuAccessibility struct {
+										AccessibilityData struct {
+											Label string `json:"label"`
+										} `json:"accessibilityData"`
+									} `json:"contextMenuAccessibility"`
+									ContextMenuEndpoint struct {
+										ClickTrackingParams string `json:"clickTrackingParams"`
+										CommandMetadata     struct {
+											WebCommandMetadata struct {
+												IgnoreNavigation bool `json:"ignoreNavigation"`
+											} `json:"webCommandMetadata"`
+										} `json:"commandMetadata"`
+										LiveChatItemContextMenuEndpoint struct {
+											Params string `json:"params"`
+										} `json:"liveChatItemContextMenuEndpoint"`
+									} `json:"contextMenuEndpoint"`
+									HeaderBackgroundColor int64  `json:"headerBackgroundColor"`
+									HeaderTextColor       int64  `json:"headerTextColor"`
+									ID                    string `json:"id"`
+									Message               struct {
+										Runs []struct {
+											Emoji struct {
+												EmojiID string `json:"emojiId"`
+												Image   struct {
+													Accessibility struct {
+														AccessibilityData struct {
+															Label string `json:"label"`
+														} `json:"accessibilityData"`
+													} `json:"accessibility"`
+													Thumbnails []struct {
+														Height int64  `json:"height"`
+														URL    string `json:"url"`
+														Width  int64  `json:"width"`
+													} `json:"thumbnails"`
+												} `json:"image"`
+												IsCustomEmoji bool     `json:"isCustomEmoji"`
+												SearchTerms   []string `json:"searchTerms"`
+												Shortcuts     []string `json:"shortcuts"`
+											} `json:"emoji"`
+											Text string `json:"text"`
+										} `json:"runs"`
+									} `json:"message"`
+									PurchaseAmountText struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"purchaseAmountText"`
+									TimestampColor int64 `json:"timestampColor"`
+									TimestampText  struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"timestampText"`
+									TimestampUsec  string `json:"timestampUsec"`
+									TrackingParams string `json:"trackingParams"`
+								} `json:"liveChatPaidMessageRenderer"`
 								LiveChatTextMessageRenderer struct {
 									AuthorBadges []struct {
 										LiveChatAuthorBadgeRenderer struct {
@@ -96,6 +162,110 @@ type YtInitialData struct {
 								} `json:"liveChatViewerEngagementMessageRenderer"`
 							} `json:"item"`
 						} `json:"addChatItemAction"`
+						AddLiveChatTickerItemAction struct {
+							DurationSec string `json:"durationSec"`
+							Item        struct {
+								LiveChatTickerPaidMessageItemRenderer struct {
+									Amount struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"amount"`
+									AmountTextColor         int64  `json:"amountTextColor"`
+									AuthorExternalChannelID string `json:"authorExternalChannelId"`
+									AuthorPhoto             struct {
+										Thumbnails []struct {
+											Height int64  `json:"height"`
+											URL    string `json:"url"`
+											Width  int64  `json:"width"`
+										} `json:"thumbnails"`
+									} `json:"authorPhoto"`
+									DurationSec        int64  `json:"durationSec"`
+									EndBackgroundColor int64  `json:"endBackgroundColor"`
+									FullDurationSec    int64  `json:"fullDurationSec"`
+									ID                 string `json:"id"`
+									ShowItemEndpoint   struct {
+										ClickTrackingParams string `json:"clickTrackingParams"`
+										CommandMetadata     struct {
+											WebCommandMetadata struct {
+												IgnoreNavigation bool `json:"ignoreNavigation"`
+											} `json:"webCommandMetadata"`
+										} `json:"commandMetadata"`
+										ShowLiveChatItemEndpoint struct {
+											Renderer struct {
+												LiveChatPaidMessageRenderer struct {
+													AuthorExternalChannelID string `json:"authorExternalChannelId"`
+													AuthorName              struct {
+														SimpleText string `json:"simpleText"`
+													} `json:"authorName"`
+													AuthorNameTextColor int64 `json:"authorNameTextColor"`
+													AuthorPhoto         struct {
+														Thumbnails []struct {
+															Height int64  `json:"height"`
+															URL    string `json:"url"`
+															Width  int64  `json:"width"`
+														} `json:"thumbnails"`
+													} `json:"authorPhoto"`
+													BodyBackgroundColor      int64 `json:"bodyBackgroundColor"`
+													BodyTextColor            int64 `json:"bodyTextColor"`
+													ContextMenuAccessibility struct {
+														AccessibilityData struct {
+															Label string `json:"label"`
+														} `json:"accessibilityData"`
+													} `json:"contextMenuAccessibility"`
+													ContextMenuEndpoint struct {
+														ClickTrackingParams string `json:"clickTrackingParams"`
+														CommandMetadata     struct {
+															WebCommandMetadata struct {
+																IgnoreNavigation bool `json:"ignoreNavigation"`
+															} `json:"webCommandMetadata"`
+														} `json:"commandMetadata"`
+														LiveChatItemContextMenuEndpoint struct {
+															Params string `json:"params"`
+														} `json:"liveChatItemContextMenuEndpoint"`
+													} `json:"contextMenuEndpoint"`
+													HeaderBackgroundColor int64  `json:"headerBackgroundColor"`
+													HeaderTextColor       int64  `json:"headerTextColor"`
+													ID                    string `json:"id"`
+													Message               struct {
+														Runs []struct {
+															Emoji struct {
+																EmojiID string `json:"emojiId"`
+																Image   struct {
+																	Accessibility struct {
+																		AccessibilityData struct {
+																			Label string `json:"label"`
+																		} `json:"accessibilityData"`
+																	} `json:"accessibility"`
+																	Thumbnails []struct {
+																		Height int64  `json:"height"`
+																		URL    string `json:"url"`
+																		Width  int64  `json:"width"`
+																	} `json:"thumbnails"`
+																} `json:"image"`
+																IsCustomEmoji bool     `json:"isCustomEmoji"`
+																SearchTerms   []string `json:"searchTerms"`
+																Shortcuts     []string `json:"shortcuts"`
+															} `json:"emoji"`
+															Text string `json:"text"`
+														} `json:"runs"`
+													} `json:"message"`
+													PurchaseAmountText struct {
+														SimpleText string `json:"simpleText"`
+													} `json:"purchaseAmountText"`
+													TimestampColor int64 `json:"timestampColor"`
+													TimestampText  struct {
+														SimpleText string `json:"simpleText"`
+													} `json:"timestampText"`
+													TimestampUsec  string `json:"timestampUsec"`
+													TrackingParams string `json:"trackingParams"`
+												} `json:"liveChatPaidMessageRenderer"`
+											} `json:"renderer"`
+										} `json:"showLiveChatItemEndpoint"`
+									} `json:"showItemEndpoint"`
+									StartBackgroundColor int64  `json:"startBackgroundColor"`
+									TrackingParams       string `json:"trackingParams"`
+								} `json:"liveChatTickerPaidMessageItemRenderer"`
+							} `json:"item"`
+						} `json:"addLiveChatTickerItemAction"`
 					} `json:"actions"`
 					VideoOffsetTimeMsec string `json:"videoOffsetTimeMsec"`
 				} `json:"replayChatItemAction"`
@@ -283,6 +453,7 @@ type YtInitialData struct {
 				} `json:"liveChatTickerRenderer"`
 			} `json:"ticker"`
 			TrackingParams string `json:"trackingParams"`
+			ViewerName     string `json:"viewerName"`
 		} `json:"liveChatContinuation"`
 	} `json:"continuationContents"`
 	ResponseContext struct {
@@ -295,8 +466,10 @@ type YtInitialData struct {
 		} `json:"serviceTrackingParams"`
 		WebResponseContextExtensionData struct {
 			YtConfigData struct {
-				Csn         string `json:"csn"`
-				VisitorData string `json:"visitorData"`
+				Csn                string `json:"csn"`
+				DelegatedSessionID string `json:"delegatedSessionId"`
+				SessionIndex       int64  `json:"sessionIndex"`
+				VisitorData        string `json:"visitorData"`
 			} `json:"ytConfigData"`
 		} `json:"webResponseContextExtensionData"`
 	} `json:"responseContext"`
