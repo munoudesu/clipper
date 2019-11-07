@@ -3,6 +3,15 @@
 ## 概要
 youtubeチャンネルの動画情報とコメントを収集して、そこからムービークリップリストを作成し再生するプログラムです。
 
+## 動作
+- クローラー
+  - cronで1日1回情報を収集し、静的ページを更新します。データに変更があればtwitterに通知します。
+    - Youtube Data APIを使ってチャンネルのビデオ情報とコメントを３０日分収集します。
+    - スクレイピングをしてライブチャットコメントを３０日分収集します。
+    - 新しくツイッターで通知すると、古いツイッターの通知は削除されます。
+- webサーバー
+  - httpsで静的ページを公開します。https://{domain}/root/index.htmlでアクセスできるようになります。
+
 ## インストール
 
 ### 前提
@@ -12,6 +21,7 @@ youtubeチャンネルの動画情報とコメントを収集して、そこか�
 - クローラーが作った静的ページをapache等で公開することも可能です。
 - youtube apiを利用するためapi keyを取得する必要があります。
 - 更新の通知にtwitter apiを利用するためtwitterのapi key, api key secret, access token, access tokeb secretを取得する必要があります。
+- chromedpを使ってスクレイピングをするのでgoogle-chromeがインストールされている必要があります。
 
 ### インストール 
 - デフォルトで/usr/local/clipperにインストールされます。
@@ -32,12 +42,6 @@ sudo systemctl start clipper.service
 ```
 - コマンドサンプル
   - NOTEにGCP-GCEのubuntuにインストールした際のコマンドリストがあります。
-
-## 動作
-- クローラー
-  - cronで1日1回情報を収集し、静的ページを更新します。データに変更があればtwitterに通知します。
-- webサーバー
-  - httpsで静的ページを公開します。https://{domain}/root/index.htmlでアクセスできるようになります。
 
 ## 設定
 
@@ -113,6 +117,8 @@ sudo systemctl start clipper.service
   - 動画の検索をします。falseを指定するとスキップできます。
 - searchComment
   - コメントの検索をします。falseを指定するとスキップできます。
+- collectLiveChatComment
+  - ライブチャットコメントを収集します。falseを指定するとスキップできます。
 - skipSearch
   - 情報収集処理をスキップします。
 - skipBuild
