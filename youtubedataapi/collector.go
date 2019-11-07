@@ -286,7 +286,10 @@ func (l *LiveCharCollector)Collect() (error) {
 		log.Printf("first live chat replay url = %v", firstLiveChatReplayUrl)
 	}
 	if firstLiveChatReplayUrl == "" {
-		return errors.Errorf("can not get first live chat replay url (videoId = %v)", l.videoId)
+		if l.verbose {
+			log.Printf("skip collect live chat because can not get first live chat replay url")
+		}
+		return nil
 	}
 	nextUrl := firstLiveChatReplayUrl
 	for {
