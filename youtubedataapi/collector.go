@@ -216,7 +216,7 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 				purchaseAmountText := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText
 				timestampUsec := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec
 				liveChatComment := &database.LiveChatComment{
-					UniqueId: l.videoId + "." + id + "." + timestampUsec + "." + clientId,
+					UniqueId: l.videoId + ".paid." + id + "." + timestampUsec + "." + clientId,
 					ChannelId: l.channelId,
 					VideoId: l.videoId,
 					ClientId: clientId,
@@ -244,7 +244,7 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 				}
 				timestampUsec := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
 				liveChatComment := &database.LiveChatComment{
-					UniqueId: l.videoId + "." + id + "." + timestampUsec + "." + clientId,
+					UniqueId: l.videoId + ".text." + id + "." + timestampUsec + "." + clientId,
 					ChannelId: l.channelId,
 					VideoId: l.videoId,
 					ClientId: clientId,
