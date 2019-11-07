@@ -1193,7 +1193,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		timestampText       TEXT NOT NULL,
 		authorName          TEXT NOT NULL,
 		authorPhotoUrl      TEXT NOT NULL,
-		messageText         TEXT NOT NULL
+		messageText         TEXT NOT NULL,
 		purchaseAmountText  TEXT NOT NULL,
 		videoOffsetTimeMsec TEXT NOT NULL
 	)`
