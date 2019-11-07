@@ -135,5 +135,5 @@ sudo systemctl start clipper.service
   - https://developers.google.com/youtube/terms/developer-policies
   - ポリシーを考慮して30日以内のデータしか保持しません。
 - API quota
-  - 30日以内の動画数が多いとYoutube Data API v3 のquota制限に達する可能性があるため、割り当てを増加させたAPI Keyが必要になります。
+  - 30日以内の動画数が多いとYoutube Data API v3 のquota制限に達する可能性があるため、その場合は割り当てを増加させたAPI Keyが必要になります。
 

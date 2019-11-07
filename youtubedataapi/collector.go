@@ -198,36 +198,67 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 		log.Printf("nextId = %v", nextId)
 	}
 	for _, action1 := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
+		videoOffsetTimeMsec := action1.ReplayChatItemAction.VideoOffsetTimeMsec
 		for _, action2 := range action1.ReplayChatItemAction.Actions {
 			clientId := action2.AddChatItemAction.ClientID
-			id := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID
-			timestampUsec := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
-			timestampText := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText
-			if timestampText == "" {
-				continue
+			if action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText != "" {
+				timestampText := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText
+				authorName := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorName.SimpleText
+				var authorPhotoUrl string
+				if len(action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
+					authorPhotoUrl = action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorPhoto.Thumbnails[0].URL
+				}
+				id := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID
+				var messageText string
+				for _, run := range action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.Message.Runs {
+					messageText += run.Text
+				}
+				purchaseAmountText := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText
+				timestampUsec := action2.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec
+				liveChatComment := &database.LiveChatComment{
+					UniqueId: l.videoId + "." + clientId + "." + id + "." + timestampUsec,
+					ChannelId: l.channelId,
+					VideoId: l.videoId,
+					ClientId: clientId,
+					MessageId: id,
+					TimestampAt: l.timestampUsecToISO8601(timestampUsec),
+					TimestampText: timestampText,
+					AuthorName: authorName,
+					AuthorPhotoUrl: authorPhotoUrl,
+					MessageText: messageText,
+					PurchaseAmountText: purchaseAmountText,
+					VideoOffsetTimeMsec: videoOffsetTimeMsec,
+				}
+				l.liveChatComments = append(l.liveChatComments, liveChatComment)
+			} else if action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText != "" {
+				timestampText := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText
+				authorName := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText
+				var authorPhotoUrl string
+				if len(action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
+					authorPhotoUrl = action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails[0].URL
+				}
+				id := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID
+				var messageText string
+				for _, run := range action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
+					messageText += run.Text
+				}
+				timestampUsec := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
+				liveChatComment := &database.LiveChatComment{
+					UniqueId: l.videoId + "." + clientId + "." + id + "." + timestampUsec,
+					ChannelId: l.channelId,
+					VideoId: l.videoId,
+					ClientId: clientId,
+					MessageId: id,
+					TimestampAt: l.timestampUsecToISO8601(timestampUsec),
+					TimestampText: timestampText,
+					AuthorName: authorName,
+					AuthorPhotoUrl: authorPhotoUrl,
+					MessageText: messageText,
+					PurchaseAmountText: "",
+					VideoOffsetTimeMsec: videoOffsetTimeMsec,
+				}
+				l.liveChatComments = append(l.liveChatComments, liveChatComment)
 			}
-			authorName := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText
-			authorPhotoUrl := ""
-			if len(action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
-				authorPhotoUrl = action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails[0].URL
-			}
-			var text string
-			for _, run := range action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
-				text += run.Text
-			}
-			liveChatComment := &database.LiveChatComment{
-				UniqueId: l.videoId + "." + clientId + "." + id + "." + timestampUsec,
-				ChannelId: l.channelId,
-				VideoId: l.videoId,
-				ClientId: clientId,
-				CommentId: id,
-				TimestampAt: l.timestampUsecToISO8601(timestampUsec),
-				TimestampText: timestampText,
-				AuthorName: authorName,
-				AuthorPhotoUrl: authorPhotoUrl,
-				Text: text,
-			}
-			l.liveChatComments = append(l.liveChatComments, liveChatComment)
 		}
 	}
 	if nextId == "" {

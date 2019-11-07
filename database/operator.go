@@ -114,16 +114,18 @@ type ReplyComment struct {
 type CommonComment ReplyComment
 
 type LiveChatComment struct {
-	UniqueId       string
-	ChannelId      string
-	VideoId        string
-	ClientId       string
-	CommentId      string
-	TimestampAt    string
-	TimestampText  string
-	AuthorName     string
-	AuthorPhotoUrl string
-	Text           string
+	UniqueId            string
+	ChannelId           string
+	VideoId             string
+	ClientId            string
+	MessageId           string
+	TimestampAt         string
+	TimestampText       string
+	AuthorName          string
+	AuthorPhotoUrl      string
+	MessageText         string
+	PurchaseAmountText  string
+	VideoOffsetTimeMsec string
 }
 
 type ChannelPage struct {
@@ -168,26 +170,31 @@ func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatCo
 			channelId,
 			videoId,
 			clientId,
-			commentId,
-			authorName,
-			authorPhotoUrl,
+			messageId,
 			timestampAt,
 			timestampText,
-			text
+			authorName,
+			authorPhotoUrl,
+			messageText,
+			purchaseAmountText,
+			videoOffsetTimeMsec
 		    ) VALUES (
 			?, ?, ?, ?, ?,
-			?, ?, ?, ?, ?
+			?, ?, ?, ?, ?,
+			?, ?
 		    )`,
 		    liveChatComment.UniqueId,
 		    liveChatComment.ChannelId,
 		    liveChatComment.VideoId,
 		    liveChatComment.ClientId,
-		    liveChatComment.CommentId,
-		    liveChatComment.AuthorName,
-		    liveChatComment.AuthorPhotoUrl,
+		    liveChatComment.MessageId,
 		    liveChatComment.TimestampAt,
 		    liveChatComment.TimestampText,
-		    liveChatComment.Text,
+		    liveChatComment.AuthorName,
+		    liveChatComment.AuthorPhotoUrl,
+		    liveChatComment.MessageText,
+		    liveChatComment.PurchaseAmountText,
+		    liveChatComment.VideoOffsetTimeMsec,
 		)
 		if err != nil {
 		        tx.Rollback()
@@ -200,7 +207,7 @@ func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatCo
 			return errors.Wrap(err, "can not get insert id of liveChatComment")
 		}
 		if d.verbose {
-			log.Printf("update live chat comment (commentId = %v, insert id = %v)", liveChatComment.CommentId, id)
+			log.Printf("update live chat comment (uniqueId = %v, insert id = %v)", liveChatComment.UniqueId, id)
 		}
 	}
 	tx.Commit()
@@ -218,16 +225,18 @@ func (d *DatabaseOperator) GetLiveChatCommentsByChannelId(channelId string) ([]*
                 liveChatComment := &LiveChatComment{}
                 // カーソルから値を取得
                 err := liveChatCommentRows.Scan(
-                    &liveChatComment.UniqueId,
-                    &liveChatComment.ChannelId,
-                    &liveChatComment.VideoId,
-                    &liveChatComment.ClientId,
-                    &liveChatComment.CommentId,
-                    &liveChatComment.AuthorName,
-                    &liveChatComment.AuthorPhotoUrl,
-                    &liveChatComment.TimestampAt,
-                    &liveChatComment.TimestampText,
-                    &liveChatComment.Text,
+		    &liveChatComment.UniqueId,
+		    &liveChatComment.ChannelId,
+		    &liveChatComment.VideoId,
+		    &liveChatComment.ClientId,
+		    &liveChatComment.MessageId,
+		    &liveChatComment.TimestampAt,
+		    &liveChatComment.TimestampText,
+		    &liveChatComment.AuthorName,
+		    &liveChatComment.AuthorPhotoUrl,
+		    &liveChatComment.MessageText,
+		    &liveChatComment.PurchaseAmountText,
+		    &liveChatComment.VideoOffsetTimeMsec,
                 )
                 if err != nil {
                         return nil, errors.Wrap(err, "can not scan liveChatComment by channelId from database")
@@ -248,16 +257,18 @@ func (d *DatabaseOperator) GetLiveChatCommentsByVideoId(videoId string) ([]*Live
                 liveChatComment := &LiveChatComment{}
                 // カーソルから値を取得
                 err := liveChatCommentRows.Scan(
-                    &liveChatComment.UniqueId,
-                    &liveChatComment.ChannelId,
-                    &liveChatComment.VideoId,
-                    &liveChatComment.ClientId,
-                    &liveChatComment.CommentId,
-                    &liveChatComment.AuthorName,
-                    &liveChatComment.AuthorPhotoUrl,
-                    &liveChatComment.TimestampAt,
-                    &liveChatComment.TimestampText,
-                    &liveChatComment.Text,
+		    &liveChatComment.UniqueId,
+		    &liveChatComment.ChannelId,
+		    &liveChatComment.VideoId,
+		    &liveChatComment.ClientId,
+		    &liveChatComment.MessageId,
+		    &liveChatComment.TimestampAt,
+		    &liveChatComment.TimestampText,
+		    &liveChatComment.AuthorName,
+		    &liveChatComment.AuthorPhotoUrl,
+		    &liveChatComment.MessageText,
+		    &liveChatComment.PurchaseAmountText,
+		    &liveChatComment.VideoOffsetTimeMsec,
                 )
                 if err != nil {
                         return nil, errors.Wrap(err, "can not scan liveChatComment by videoId from database")
@@ -1173,16 +1184,18 @@ func (d *DatabaseOperator) createTables() (error) {
 
         liveChatCommentTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS liveChatComment (
-                uniqueId         TEXT PRIMARY KEY,
-		channelId        TEXT NOT NULL,
-		videoId          TEXT NOT NULL,
-		clientId         TEXT NOT NULL,
-		commentId        TEXT NOT NULL, 
-		authorName       TEXT NOT NULL,
-		authorPhotoUrl   TEXT NOT NULL,
-		timestampAt    TEXT NOT NULL,
-		timestampText    TEXT NOT NULL,
-		text             TEXT NOT NULL
+                uniqueId            TEXT PRIMARY KEY,
+		channelId           TEXT NOT NULL,
+		videoId             TEXT NOT NULL,
+		clientId            TEXT NOT NULL,
+		messageId           TEXT NOT NULL, 
+		timestampAt         TEXT NOT NULL,
+		timestampText       TEXT NOT NULL,
+		authorName          TEXT NOT NULL,
+		authorPhotoUrl      TEXT NOT NULL,
+		messageText         TEXT NOT NULL
+		purchaseAmountText  TEXT NOT NULL,
+		videoOffsetTimeMsec TEXT NOT NULL
 	)`
 	_, err = d.db.Exec(liveChatCommentTableCreateQuery);
 	if  err != nil {
