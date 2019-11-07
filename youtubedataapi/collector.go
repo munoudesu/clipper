@@ -19,9 +19,14 @@ import (
 	"github.com/munoudesu/clipper/database"
 )
 
+const(
+	userAgent string = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36 Gecko/20100101 Firefox/70.0"
+)
+
 type LiveCharCollector struct {
 	channelId        string
 	videoId          string
+	scraping         bool
 	liveChatComments []*database.LiveChatComment
 	maxRetry         int
 	databaseOperator *database.DatabaseOperator
@@ -39,14 +44,17 @@ func (l *LiveCharCollector)timestampUsecToISO8601(timestampUsec string) (string)
         return t.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
-func (l *LiveCharCollector)getVideoPage() ([]byte, error) {
-	url := "https://www.youtube.com/watch?v=" + l.videoId
+
+func (l *LiveCharCollector)getPage(url string, useUserAgent bool) ([]byte, error) {
 	if l.verbose {
 		log.Printf("retrive url = %v", url)
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not create http request (url = %v)", url)
+	}
+	if useUserAgent {
+		req.Header.Set("User-Agent", userAgent)
 	}
 	client := new(http.Client)
 	resp, err := client.Do(req)
@@ -64,10 +72,15 @@ func (l *LiveCharCollector)getVideoPage() ([]byte, error) {
 	return body, nil
 }
 
-func (l *LiveCharCollector)getFirstLiveChatReplayUrl(body []byte) (string, error) {
+func (l *LiveCharCollector)getFirstLiveChatReplayUrl() (string, error) {
+	url := "https://www.youtube.com/watch?v=" + l.videoId
+        body, err := l.getPage(url, false)
+        if err != nil {
+                return "", errors.Wrapf(err, "can not get video page (url = %v)", url)
+        }
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
-		return "", errors.Wrapf(err, "can not parse body (videoId = %v)", l.videoId)
+		return "", errors.Wrapf(err, "can not parse body (url = %v)", url)
 	}
 	var firstLiveChatReplayUrl string
 	doc.Find("#live-chat-iframe").Each(func(i int, s *goquery.Selection) {
@@ -80,7 +93,36 @@ func (l *LiveCharCollector)getFirstLiveChatReplayUrl(body []byte) (string, error
 	return firstLiveChatReplayUrl, nil
 }
 
-func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
+func (l *LiveCharCollector)getYtInitialData(url string)(string, error) {
+        body, err := l.getPage(url, true)
+        if err != nil {
+                return "", errors.Wrapf(err, "can not get video page (url = %v)", url)
+        }
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		return "", errors.Wrapf(err, "can not parse body (url = %v)", url)
+	}
+	var yuInitialDataStr string
+	doc.Find("body>script").EachWithBreak(func(i int, s *goquery.Selection) (bool) {
+		html := s.Text()
+		if strings.Contains(html, "ytInitialData") {
+			elems := strings.SplitN(html, "=", 2)
+			if len(elems) < 2 {
+				log.Printf("can not not parse ytInitialData (url = %v, html = %v)", url, html)
+				return true
+			}
+			yuInitialDataStr = strings.TrimSuffix(strings.TrimSpace(elems[1]), ";")
+			return false
+		}
+		return true
+	})
+	if yuInitialDataStr == "" {
+		return "", errors.Wrapf(err, "not found ytInitialData (url = %v)", url)
+	}
+	return yuInitialDataStr, nil
+}
+
+func (l *LiveCharCollector)getYtInitialDataWithScraping(url string)(string, error) {
 	if l.verbose {
 		log.Printf("live chat replay url = %v", url)
 	}
@@ -102,18 +144,19 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 				if script.ChildNodeCount == 0 {
 					continue
 				}
-				if strings.Contains(script.Children[0].NodeValue, "ytInitialData") {
-					html, err := dom.GetOuterHTML().WithNodeID(script.Children[0].NodeID).Do(ctx)
-					if err != nil {
-						return errors.Wrapf(err, "can not get outer html (url = %v)", url)
-					}
-					elems := strings.SplitN(html, "=", 2)
-					if len(elems) < 2 {
-						return errors.Errorf("can not not parse ytInitialData (url = %v, html = %v)", url, html)
-					}
-					yuInitialDataStr = strings.TrimSuffix(strings.TrimSpace(elems[1]), ";")
-					return nil
+				if !strings.Contains(script.Children[0].NodeValue, "ytInitialData") {
+					continue
 				}
+				html, err := dom.GetOuterHTML().WithNodeID(script.Children[0].NodeID).Do(ctx)
+				if err != nil {
+					return errors.Wrapf(err, "can not get outer html (url = %v)", url)
+				}
+				elems := strings.SplitN(html, "=", 2)
+				if len(elems) < 2 {
+					return errors.Errorf("can not not parse ytInitialData (url = %v, html = %v)", url, html)
+				}
+				yuInitialDataStr = strings.TrimSuffix(strings.TrimSpace(elems[1]), ";")
+				return nil
 			}
 			return errors.Errorf("not found ytInitialData (url = %v)", url)
 		}),
@@ -121,8 +164,29 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "can not navigate (url = %v)", url)
 	}
+	return yuInitialDataStr, nil
+}
+
+func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
+	var yuInitialDataStr string
+	if l.scraping {
+		str, err := l.getYtInitialDataWithScraping(url)
+		if err != nil {
+			return "", errors.Wrapf(err, "can not get ytInitialData with scraping (url = %v)", url)
+		}
+		yuInitialDataStr = str
+	} else {
+		str, err := l.getYtInitialData(url)
+		if err != nil {
+			return "", errors.Wrapf(err, "can not get ytInitialData (url = %v)", url)
+		}
+		yuInitialDataStr = str
+	}
+	if yuInitialDataStr == "" {
+		return "", errors.Errorf("not found ytInitialData (url = %v)", url)
+	}
 	var ytInitialData YtInitialData
-	err = json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData)
+	err := json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData)
 	if err != nil {
 		return "", errors.Wrapf(err, "can not unmarshal ytInitialData (url = %v, yuInitialDataStr = %v)", url, yuInitialDataStr)
 	}
@@ -139,6 +203,9 @@ func (l *LiveCharCollector)getLiveChat(url string)(string, error) {
 			id := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID
 			timestampUsec := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
 			timestampText := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText
+			if timestampText == "" {
+				continue
+			}
 			authorName := action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText
 			authorPhotoUrl := ""
 			if len(action2.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
@@ -180,16 +247,15 @@ func (l *LiveCharCollector)Collect() (error) {
 		}
 		return nil
 	}
-	body, err := l.getVideoPage()
-	if err != nil {
-		return errors.Wrapf(err, "can not get video page (videoId = %v)", l.videoId)
-	}
-	firstLiveChatReplayUrl, err := l.getFirstLiveChatReplayUrl(body)
+	firstLiveChatReplayUrl, err := l.getFirstLiveChatReplayUrl()
 	if err != nil {
 		return errors.Wrapf(err, "can not get first live chat replay url (videoId = %v)", l.videoId)
 	}
 	if l.verbose {
 		log.Printf("first live chat replay url = %v", firstLiveChatReplayUrl)
+	}
+	if firstLiveChatReplayUrl == "" {
+		return errors.Errorf("can not get first live chat replay url (videoId = %v)", l.videoId)
 	}
 	nextUrl := firstLiveChatReplayUrl
 	for {
@@ -220,10 +286,11 @@ func (l *LiveCharCollector)Collect() (error) {
 	return nil
 }
 
-func NewLiveChatCollector(video *database.Video, databaseOperator *database.DatabaseOperator, verbose bool) (*LiveCharCollector) {
+func NewLiveChatCollector(video *database.Video, scraping bool, databaseOperator *database.DatabaseOperator, verbose bool) (*LiveCharCollector) {
 	return &LiveCharCollector {
 		channelId:        video.ChannelId,
 		videoId:          video.VideoId,
+		scraping:         scraping,
 		liveChatComments: make([]*database.LiveChatComment, 0, 1000),
 		maxRetry:         10,
 		databaseOperator: databaseOperator,

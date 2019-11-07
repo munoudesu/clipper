@@ -7,7 +7,7 @@ youtubeチャンネルの動画情報とコメントを収集して、そこか�
 - クローラー
   - cronで1日1回情報を収集し、静的ページを更新します。データに変更があればtwitterに通知します。
     - Youtube Data APIを使ってチャンネルのビデオ情報とコメントを３０日分収集します。
-    - スクレイピングをしてライブチャットコメントを３０日分収集します。
+    - ライブチャットコメントを３０日分収集します。
     - 新しくツイッターで通知すると、古いツイッターの通知は削除されます。
 - webサーバー
   - httpsで静的ページを公開します。https://{domain}/root/index.htmlでアクセスできるようになります。
@@ -21,7 +21,7 @@ youtubeチャンネルの動画情報とコメントを収集して、そこか�
 - クローラーが作った静的ページをapache等で公開することも可能です。
 - youtube apiを利用するためapi keyを取得する必要があります。
 - 更新の通知にtwitter apiを利用するためtwitterのapi key, api key secret, access token, access tokeb secretを取得する必要があります。
-- chromedpを使ってスクレイピングをするのでgoogle-chromeがインストールされている必要があります。
+- スクレイピングをする場合chromedpを使用するのでgoogle-chrome等がインストールされている必要があります。
 
 ### インストール 
 - デフォルトで/usr/local/clipperにインストールされます。
@@ -73,6 +73,8 @@ sudo systemctl start clipper.service
     - 任意の名前を指定します。
   - channelId
     - チャンネルのIDを指定します。
+  - scraping
+    - ライブチャットを取得するのにスクレイピングするかどうか。
 - twitterセクション
   - tweetLinkRoot
     - ツイートに含めるリンクのURLを指定します。
