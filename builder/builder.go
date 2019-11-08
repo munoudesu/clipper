@@ -365,11 +365,11 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			channelProp.videosDupCheckMap[comment.VideoId] = idx
 		}
 		videoProp := channelProp.videos[idx]
-		if videoProp.updateAt < comment.UpdateAt {
-			videoProp.updateAt = comment.UpdateAt
-		}
 		// convert text to time ranges
 		timeRanges := b.parseTimeRanges(comment.TextOriginal)
+		if len(timeRanges) > 0 && videoProp.updateAt < comment.UpdateAt {
+			videoProp.updateAt = comment.UpdateAt
+		}
 		for _, timeRange := range timeRanges {
 			if timeRange.start > duration || timeRange.start < 0 {
 				if b.verbose {
