@@ -305,7 +305,7 @@ func (b *Builder)adjustTimRanges(timeRanges []*timeRangeProperty) ([]*timeRangeP
 	return timeRanges
 }
 
-func (b *Builder)computeStandardEeviationThreshold(counts[]float64) (float64) {
+func (b *Builder)computeStandardDeviationThreshold(counts[]float64) (float64) {
 	var total float64
 	var n float64 = (float64)(len(counts))
 	for _, count := range counts {
@@ -350,7 +350,7 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 		}
 		duration := b.durationStringToSeconds(video.Duration)
 		if b.verbose {
-			log.Printf("video duration = %v", duration)
+			log.Printf("videoId = %v, video duration = %v, commentId = %v", video.VideoId, duration, comment.CommentId)
 		}
 		idx, ok := channelProp.videosDupCheckMap[comment.VideoId]
 		if !ok {
@@ -371,15 +371,17 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 		// convert text to time ranges
 		timeRanges := b.parseTimeRanges(comment.TextOriginal)
 		for _, timeRange := range timeRanges {
-			if timeRange.start > duration {
+			if timeRange.start > duration || timeRange.start < 0 {
 				if b.verbose {
-					log.Printf("time range start over duration (%v, %v)", timeRange.start, duration)
+					log.Printf("time range start over duration (videoId = %v, commentId = %v, comment start = %v, video duration = %v)",
+						comment.VideoId, comment.CommentId, timeRange.start, duration)
 				}
 				timeRange.start = duration
 			}
-			if timeRange.end > duration {
+			if timeRange.end > duration || timeRange.end < 0 {
 				if b.verbose {
-					log.Printf("time range end over duration (%v, %v)", timeRange.end, duration)
+					log.Printf("time range end over duration (videoId = %v, commentId = %v, comment end = %v, video  duration = %v)",
+						comment.VideoId, comment.CommentId, timeRange.end, duration)
 				}
 				timeRange.end = duration
 			}
@@ -403,7 +405,7 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 		}
 	}
-	// live chat comments
+	// check live chat comments
 	videos, err := b.databaseOperator.GetVideosByChannelId(channel.ChannelId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not get videos from database (channelId = %v)", channel.ChannelId)
@@ -417,14 +419,14 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 		}
 		duration := b.durationStringToSeconds(video.Duration)
 		if b.verbose {
-			log.Printf("video duration = %v", duration)
+			log.Printf("videoId = %v, video duration = %v, commentId = %v", video.VideoId, duration, comment.CommentId)
 		}
 		liveChatComments, err := b.databaseOperator.GetLiveChatCommentsByVideoId(video.VideoId)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can not get live chat comment from database (channelId = %v, videoId = %v)", channel.ChannelId, video.VideoId)
 		}
 		size := (duration / b.autoDetectUnitSpan) + 1
-		counts := make([]float64, size, size)
+		counts := make([]*float64, size, size)
 		for _, liveChatComment := range liveChatComments {
 			offsetMsec, err := strconv.ParseInt(liveChatComment.VideoOffsetTimeMsec, 10, 64)
 			if err != nil {
@@ -432,7 +434,7 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				continue
 			}
 			offset := offsetMsec / 1000
-			if offset <= b.autoDetectSkipDuration || offset >= duration {
+			if offset < b.autoDetectSkipDuration || offset > duration {
 				continue
 			}
 			idx := offset / b.autoDetectUnitSpan
@@ -442,13 +444,13 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				counts[idx] += 1
 			}
 		}
-		// 標準偏差を求める
-		threshold := b.computeStandardEeviationThreshold(counts[b.autoDetectSkipDuration/b.autoDetectUnitSpan:])
+		// get threashold from standard deviation
+		threshold := b.computeStandardDeviationThreshold(counts[(b.autoDetectSkipDuration/b.autoDetectUnitSpan):])
 		if b.verbose {
 			log.Printf("count threshold = %v", threshold)
 		}
 		for i, c := range counts {
-			if c < threshold {
+			if c < threshold || c == 0 {
 				continue
 			}
 			if b.verbose {
