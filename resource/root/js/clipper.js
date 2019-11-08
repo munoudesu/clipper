@@ -104,6 +104,8 @@ var app = new Vue({
 				} else {
 					clip.End = nextClip.End;
 				}
+				clip.Recommenders.concat(nextClip.Recommenders);
+				clip.Recommenders = Array.from(new Set(clip.Recommenders));
 				clip.Merge += 1;
 				// クリップのインデックスを進める
 				this.incrementIndex();
