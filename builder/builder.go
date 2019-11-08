@@ -447,54 +447,56 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 		// get threashold from standard deviation
 		threshold := b.computeStandardDeviationThreshold(counts[(b.autoDetectSkipDuration/b.autoDetectUnitSpan):])
 		if b.verbose {
-			log.Printf("count threshold = %v", threshold)
+			log.Printf("standard deviation threshold = %v", threshold)
 		}
-		for i, c := range counts {
-			if c < threshold || c == 0 {
-				continue
-			}
-			if b.verbose {
-				log.Printf("idx = %v score = %v", i, c)
-			}
-			idx, ok := channelProp.videosDupCheckMap[video.VideoId]
-			if !ok {
-				videoProp := &videoProperty{
-					videoId: video.VideoId,
-					title: video.Title,
-					updateAt: video.PublishdAt,
-					timeRanges: make([]*timeRangeProperty, 0),
+		if threshold != 0 {
+			for i, c := range counts {
+				if c < threshold {
+					continue
 				}
-				idx = len(channelProp.videos)
-				channelProp.videos = append(channelProp.videos, videoProp)
-				channelProp.videosDupCheckMap[video.VideoId] = idx
+				if b.verbose {
+					log.Printf("idx = %v score = %v", i, c)
+				}
+				idx, ok := channelProp.videosDupCheckMap[video.VideoId]
+				if !ok {
+					videoProp := &videoProperty{
+						videoId: video.VideoId,
+						title: video.Title,
+						updateAt: video.PublishdAt,
+						timeRanges: make([]*timeRangeProperty, 0),
+					}
+					idx = len(channelProp.videos)
+					channelProp.videos = append(channelProp.videos, videoProp)
+					channelProp.videosDupCheckMap[video.VideoId] = idx
+				}
+				videoProp := channelProp.videos[idx]
+				if videoProp.updateAt < video.PublishdAt {
+					videoProp.updateAt = video.PublishdAt
+				}
+				start := ((int64)(i) * b.autoDetectUnitSpan) - b.autoDetectRangeSec
+				if start < 0 {
+					start = 0;
+				}
+				timeRangeProp := &timeRangeProperty{
+					start: start,
+					end: 0,
+					comments: make([]*commentProperty, 0),
+					commentsDupCheckMap: make(map[string]bool),
+				}
+				commentId := fmt.Sprintf("AD.%v.%v.%v.%v.%v", channel.ChannelId, video.VideoId, i, c, b.autoDetectUnitSpan)
+				commentProperty := &commentProperty{
+					commentId: commentId,
+					author: "Automatic detection by clipper",
+					authorImage: "",
+					text: fmt.Sprintf("Automatic detection score %v", c),
+				}
+				_, ok = timeRangeProp.commentsDupCheckMap[commentId]
+				if !ok {
+					timeRangeProp.comments = append(timeRangeProp.comments, commentProperty)
+					timeRangeProp.commentsDupCheckMap[commentId] = true
+				}
+				videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 			}
-			videoProp := channelProp.videos[idx]
-			if videoProp.updateAt < video.PublishdAt {
-				videoProp.updateAt = video.PublishdAt
-			}
-			start := ((int64)(i) * b.autoDetectUnitSpan) - b.autoDetectRangeSec
-			if start < 0 {
-				start = 0;
-			}
-			timeRangeProp := &timeRangeProperty{
-				start: start,
-				end: 0,
-				comments: make([]*commentProperty, 0),
-				commentsDupCheckMap: make(map[string]bool),
-			}
-			commentId := fmt.Sprintf("AD.%v.%v.%v.%v.%v", channel.ChannelId, video.VideoId, i, c, b.autoDetectUnitSpan)
-			commentProperty := &commentProperty{
-				commentId: commentId,
-				author: "Automatic detection by clipper",
-				authorImage: "",
-				text: fmt.Sprintf("Automatic detection score %v", c),
-			}
-			_, ok = timeRangeProp.commentsDupCheckMap[commentId]
-			if !ok {
-				timeRangeProp.comments = append(timeRangeProp.comments, commentProperty)
-				timeRangeProp.commentsDupCheckMap[commentId] = true
-			}
-			videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 		}
 	}
 	// sort and adjust
