@@ -59,25 +59,27 @@ type channelProperty struct {
 }
 
 type Builder struct {
-	sourceDirPath         string
-	resourceDirPath       string
-	templateDirPath       string
-	buildRootDirPath      string
-	buildCacheDirPath     string
-	channels              youtubedataapi.Channels
-	databaseOperator      *database.DatabaseOperator
-	verbose               bool
-	timeRangeRegexp       *regexp.Regexp
-	startEndSepRegexp     *regexp.Regexp
-	daySepRegexp          *regexp.Regexp
-	hourSepRegexp         *regexp.Regexp
-	minSepRegexp          *regexp.Regexp
-	secSepRegexp          *regexp.Regexp
-	maxDuration           int64
-	adjustStartTimeSpan   int64
-	autoDetectUnitSpan    int64
-	autoDetectThreshold   float64
-	templates             *template.Template
+	sourceDirPath          string
+	resourceDirPath        string
+	templateDirPath        string
+	buildRootDirPath       string
+	buildCacheDirPath      string
+	channels               youtubedataapi.Channels
+	databaseOperator       *database.DatabaseOperator
+	verbose                bool
+	timeRangeRegexp        *regexp.Regexp
+	startEndSepRegexp      *regexp.Regexp
+	daySepRegexp           *regexp.Regexp
+	hourSepRegexp          *regexp.Regexp
+	minSepRegexp           *regexp.Regexp
+	secSepRegexp           *regexp.Regexp
+	maxDuration            int64
+	adjustStartTimeSpan    int64
+	autoDetectUnitSpan     int64
+	autoDetectThreshold    float64
+	autoDetectRangeSec     int64
+	autoDetectSkipDuration int64
+	templates              *template.Template
 }
 
 type Clip struct {
@@ -430,7 +432,7 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				continue
 			}
 			offset := offsetMsec / 1000
-			if offset < 0 || offset > duration {
+			if offset <= b.autoDetectSkipDuration || offset >= duration {
 				continue
 			}
 			idx := offset / b.autoDetectUnitSpan
@@ -441,56 +443,56 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			}
 		}
 		// 標準偏差を求める
-		threshold := b.computeStandardEeviationThreshold(counts)
+		threshold := b.computeStandardEeviationThreshold(counts[b.autoDetectSkipDuration/b.autoDetectUnitSpan:])
 		if b.verbose {
 			log.Printf("count threshold = %v", threshold)
 		}
 		for i, c := range counts {
-			if c > threshold {
-				idx, ok := channelProp.videosDupCheckMap[video.VideoId]
-				if !ok {
-					videoProp := &videoProperty{
-						videoId: video.VideoId,
-						title: video.Title,
-						updateAt: video.PublishdAt,
-						timeRanges: make([]*timeRangeProperty, 0),
-					}
-					idx = len(channelProp.videos)
-					channelProp.videos = append(channelProp.videos, videoProp)
-					channelProp.videosDupCheckMap[video.VideoId] = idx
-				}
-				videoProp := channelProp.videos[idx]
-				if videoProp.updateAt < video.PublishdAt {
-					videoProp.updateAt = video.PublishdAt
-				}
-				start := ((int64)(i) * b.autoDetectUnitSpan) - b.adjustStartTimeSpan
-				if start < 0 {
-					start = 0;
-				}
-				end := ((int64)(i) * b.autoDetectUnitSpan) + b.adjustStartTimeSpan
-				if end > duration {
-					end = duration;
-				}
-				timeRangeProp := &timeRangeProperty{
-					start: start,
-					end: end,
-					comments: make([]*commentProperty, 0),
-					commentsDupCheckMap: make(map[string]bool),
-				}
-				commentId := fmt.Sprintf("AD.%v.%v.%v.%v.%v", channel.ChannelId, video.VideoId, i, c, b.autoDetectUnitSpan)
-				commentProperty := &commentProperty{
-					commentId: commentId,
-					author: "Automatic detection by clipper",
-					authorImage: "",
-					text: fmt.Sprintf("Automatic detection score %v", c),
-				}
-				_, ok = timeRangeProp.commentsDupCheckMap[commentId]
-				if !ok {
-					timeRangeProp.comments = append(timeRangeProp.comments, commentProperty)
-					timeRangeProp.commentsDupCheckMap[commentId] = true
-				}
-				videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
+			if c < threshold {
+				continue
 			}
+			if b.verbose {
+				log.Printf("idx = %v score = %v", i, c)
+			}
+			idx, ok := channelProp.videosDupCheckMap[video.VideoId]
+			if !ok {
+				videoProp := &videoProperty{
+					videoId: video.VideoId,
+					title: video.Title,
+					updateAt: video.PublishdAt,
+					timeRanges: make([]*timeRangeProperty, 0),
+				}
+				idx = len(channelProp.videos)
+				channelProp.videos = append(channelProp.videos, videoProp)
+				channelProp.videosDupCheckMap[video.VideoId] = idx
+			}
+			videoProp := channelProp.videos[idx]
+			if videoProp.updateAt < video.PublishdAt {
+				videoProp.updateAt = video.PublishdAt
+			}
+			start := ((int64)(i) * b.autoDetectUnitSpan) - b.autoDetectRangeSec
+			if start < 0 {
+				start = 0;
+			}
+			timeRangeProp := &timeRangeProperty{
+				start: start,
+				end: 0,
+				comments: make([]*commentProperty, 0),
+				commentsDupCheckMap: make(map[string]bool),
+			}
+			commentId := fmt.Sprintf("AD.%v.%v.%v.%v.%v", channel.ChannelId, video.VideoId, i, c, b.autoDetectUnitSpan)
+			commentProperty := &commentProperty{
+				commentId: commentId,
+				author: "Automatic detection by clipper",
+				authorImage: "",
+				text: fmt.Sprintf("Automatic detection score %v", c),
+			}
+			_, ok = timeRangeProp.commentsDupCheckMap[commentId]
+			if !ok {
+				timeRangeProp.comments = append(timeRangeProp.comments, commentProperty)
+				timeRangeProp.commentsDupCheckMap[commentId] = true
+			}
+			videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 		}
 	}
 	// sort and adjust
@@ -631,6 +633,8 @@ func NewBuilder(
 	adjustStartTimeSpan int64,
 	autoDetectUnitSpan int64,
 	autoDetectThreshold float64,
+	autoDetectRangeSec int64,
+	autoDetectSkipDuration int64,
 	channels youtubedataapi.Channels,
 	databaseOperator *database.DatabaseOperator,
 	verbose bool) (*Builder, error)  {
@@ -717,6 +721,8 @@ func NewBuilder(
 		adjustStartTimeSpan: adjustStartTimeSpan,
 		autoDetectUnitSpan: autoDetectUnitSpan,
 		autoDetectThreshold: autoDetectThreshold,
+		autoDetectRangeSec: autoDetectRangeSec,
+		autoDetectSkipDuration: autoDetectSkipDuration,
 		templates: templates,
 	}, nil
 }

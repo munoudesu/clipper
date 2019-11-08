@@ -35,12 +35,14 @@ type clipperDatabaseConfig struct {
 }
 
 type clipperBuilderConfig struct {
-	SourceDirPath       string  `toml:"sourceDirPath"`
-	BuildDirPath        string  `toml:"buildDirPath"`
-	MaxDuration         int64   `toml:"maxDuration"`
-	AdjustStartTimeSpan int64   `toml:"adjustStartTimeSpan"`
-	AutoDetectUnitSpan  int64   `toml:"autoDetectUnitSpan"`
-	AutoDetectThreshold float64 `toml:"autoDetectThreshold"`
+	SourceDirPath          string  `toml:"sourceDirPath"`
+	BuildDirPath           string  `toml:"buildDirPath"`
+	MaxDuration            int64   `toml:"maxDuration"`
+	AdjustStartTimeSpan    int64   `toml:"adjustStartTimeSpan"`
+	AutoDetectUnitSpan     int64   `toml:"autoDetectUnitSpan"`
+	AutoDetectThreshold    float64 `toml:"autoDetectThreshold"`
+	AutoDetectRangeSec     int64   `toml:"autoDetectRangeSec"`
+	AutoDetectSkipDuration int64   `toml:"autoDetectSkipDuration"`
 }
 
 type clipperWebConfig struct {
@@ -155,6 +157,8 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 			conf.Builder.AdjustStartTimeSpan,
 			conf.Builder.AutoDetectUnitSpan,
 			conf.Builder.AutoDetectThreshold,
+			conf.Builder.AutoDetectRangeSec,
+			conf.Builder.AutoDetectSkipDuration,
 			conf.Youtube.Channels,
 			databaseOperator,
 			cmdArgs.verbose)
