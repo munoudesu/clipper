@@ -419,14 +419,14 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 		}
 		duration := b.durationStringToSeconds(video.Duration)
 		if b.verbose {
-			log.Printf("videoId = %v, video duration = %v, commentId = %v", video.VideoId, duration, comment.CommentId)
+			log.Printf("videoId = %v, video duration = %v", video.VideoId, duration)
 		}
 		liveChatComments, err := b.databaseOperator.GetLiveChatCommentsByVideoId(video.VideoId)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can not get live chat comment from database (channelId = %v, videoId = %v)", channel.ChannelId, video.VideoId)
 		}
 		size := (duration / b.autoDetectUnitSpan) + 1
-		counts := make([]*float64, size, size)
+		counts := make([]float64, size, size)
 		for _, liveChatComment := range liveChatComments {
 			offsetMsec, err := strconv.ParseInt(liveChatComment.VideoOffsetTimeMsec, 10, 64)
 			if err != nil {
