@@ -14,7 +14,8 @@ var app = new Vue({
 		youtubePlayer: null,
 		lastYoutubePlayerStatus: -1,
 		showSettingContent: false,
-		showDescriptionContent: false
+		showDescriptionContent: false,
+		lastClip: null,
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
@@ -74,16 +75,39 @@ var app = new Vue({
 		closeDescription: function() {
 			this.showDescriptionContent = false;
 		},
-		fixClipDuration: function(clip, nextClip) {
+		fixClipDuration: function(clip) {
+			clip.Merge = 0;
 			if (clip.End == 0) {
 				clip.End = clip.Start + this.settings[this.channelId].defaultDuration;
 			}
-			if (nextClip != null && clip.VideoId == nextClip.VideoId) {
-				if (clip.End > nextClip.Start) {
-					clip.End = nextClip.Start;
+			while (true) {
+				// 次のクリップの開始時間をチェック
+				if (this.clipsIndex >= this.clips.length - 1) {
+					// 次のクリップはもうない
+					clip.Duration = clip.End - clip.Start;
+					return;
 				}
+				nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
+				if (clip.VideoId != nextClip.VideoId) {
+					// 次のクリップとビデオが一致しない
+					clip.Duration = clip.End - clip.Start;
+					return;
+				}
+				if (clip.End < nextClip.Start) {
+					// 次のクリップの開始と被らない
+					clip.Duration = clip.End - clip.Start;
+					return;
+				}
+				// 次のクリップの開始と被る場合、次のクリップを含める
+				if (nextClip.End == 0) {
+					clip.End = nextClip.Start + this.settings[this.channelId].defaultDuration;
+				} else {
+					clip.End = nextClip.End;
+				}
+				clip.Merge += 1;
+				// クリップのインデックスを進める
+				this.incrementIndex();
 			}
-			clip.Duration = clip.End - clip.Start;
 		},
 		makeOriginUrl: function(clip) {
 			return "https://youtu.be/" + clip.VideoId + "?t=" + clip.Start;
@@ -95,6 +119,9 @@ var app = new Vue({
 			}
 		},
 		decrementIndex: function() {
+			if (this.lastClip != null) {
+				this.clipsIndex -= this.lastClip.Merge;
+			}
 			this.clipsIndex -= 1;
 			if (this.clipsIndex < 0) {
 				this.clipsIndex = this.clips.length -1;
@@ -102,11 +129,7 @@ var app = new Vue({
 		},
 		getClip: function() {
 			let clip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex]));
-			let nextClip = null;
-			if (this.clipsIndex < this.clips.length - 1) {
-				nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
-			}
-			this.fixClipDuration(clip, nextClip);
+			this.fixClipDuration(clip);
 			return clip;
 		},
 		getNextClip: function() {
@@ -155,6 +178,7 @@ var app = new Vue({
 		},
 		youtubePlayerLoadNext: function() {
 			clip = this.getNextClip();
+			this.lastClip = clip;
 			this.updateClipView(clip)
 			this.youtubePlayer.loadVideoById({
 				videoId: clip.VideoId,
@@ -164,6 +188,7 @@ var app = new Vue({
 		},
 		youtubePlayerLoadPrevious: function() {
 			clip = this.getPreviousClip();
+			this.lastClip = clip;
 			this.updateClipView(clip)
 			this.youtubePlayer.loadVideoById({
 				videoId: clip.VideoId,
