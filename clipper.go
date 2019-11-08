@@ -35,10 +35,12 @@ type clipperDatabaseConfig struct {
 }
 
 type clipperBuilderConfig struct {
-	SourceDirPath       string `toml:"sourceDirPath"`
-	BuildDirPath        string `toml:"buildDirPath"`
-	MaxDuration         int64  `toml:"maxDuration"`
-	AdjustStartTimeSpan int64  `toml:"adjustStartTimeSpan"`
+	SourceDirPath       string  `toml:"sourceDirPath"`
+	BuildDirPath        string  `toml:"buildDirPath"`
+	MaxDuration         int64   `toml:"maxDuration"`
+	AdjustStartTimeSpan int64   `toml:"adjustStartTimeSpan"`
+	AutoDetectUnitSpan  int64   `toml:"autoDetectUnitSpan"`
+	AutoDetectThreshold float64 `toml:"autoDetectThreshold"`
 }
 
 type clipperWebConfig struct {
@@ -121,19 +123,41 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 	}
 	defer databaseOperator.Close()
 	if !cmdArgs.skipSearch {
-		youtubeSearcher, err := youtubedataapi.NewSearcher(youtubeApiKeys, conf.Youtube.MaxVideos, conf.Youtube.Scraping, conf.Youtube.Channels, databaseOperator, cmdArgs.verbose)
+		youtubeSearcher, err := youtubedataapi.NewSearcher(
+			youtubeApiKeys,
+			conf.Youtube.MaxVideos,
+			conf.Youtube.Scraping,
+			conf.Youtube.Channels,
+			databaseOperator,
+			cmdArgs.verbose)
 		if err != nil {
 			log.Printf("can not create searcher of youtube: %v", err)
 			os.Exit(1)
 		}
-		err = youtubeSearcher.Search(cmdArgs.searchChannel, cmdArgs.searchVideo, cmdArgs.searchComment, cmdArgs.collectLiveChatComment, cmdArgs.checkChannelModified, cmdArgs.checkVideoModified, cmdArgs.checkCommentModified)
+		err = youtubeSearcher.Search(
+			cmdArgs.searchChannel,
+			cmdArgs.searchVideo,
+			cmdArgs.searchComment,
+			cmdArgs.collectLiveChatComment,
+			cmdArgs.checkChannelModified,
+			cmdArgs.checkVideoModified,
+			cmdArgs.checkCommentModified)
 		if err != nil {
 			log.Printf("can not search youtube: %v", err)
 			os.Exit(1)
 		}
 	}
 	if !cmdArgs.skipBuild {
-		builder, err := builder.NewBuilder(conf.Builder.SourceDirPath, conf.Builder.BuildDirPath, conf.Builder.MaxDuration, conf.Builder.AdjustStartTimeSpan, conf.Youtube.Channels, databaseOperator, cmdArgs.verbose)
+		builder, err := builder.NewBuilder(
+			conf.Builder.SourceDirPath,
+			conf.Builder.BuildDirPath,
+			conf.Builder.MaxDuration,
+			conf.Builder.AdjustStartTimeSpan,
+			conf.Builder.AutoDetectUnitSpan,
+			conf.Builder.AutoDetectThreshold,
+			conf.Youtube.Channels,
+			databaseOperator,
+			cmdArgs.verbose)
 		if err != nil {
 			log.Printf("can not create builder: %v", err)
 			os.Exit(1)
@@ -145,7 +169,14 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 		}
 	}
 	if !cmdArgs.skipNotify {
-		notifier := twitterapi.NewNotifier(twitterApiKeyAccessToken, conf.Twitter.TweetLinkRoot, conf.Twitter.TweetComment, conf.Youtube.Channels, conf.Twitter.Users, databaseOperator, cmdArgs.verbose)
+		notifier := twitterapi.NewNotifier(
+			twitterApiKeyAccessToken,
+			conf.Twitter.TweetLinkRoot,
+			conf.Twitter.TweetComment,
+			conf.Youtube.Channels,
+			conf.Twitter.Users,
+			databaseOperator,
+			cmdArgs.verbose)
 		err := notifier.Notify(cmdArgs.renotify)
 		if err != nil {
 			log.Printf("can not notigy: %v", err)
@@ -176,7 +207,14 @@ func signalWait() {
 }
 
 func web(conf *clipperConfig, cmdArgs *commandArguments) {
-	server := server.NewServer(conf.Web.AddrPort, conf.Web.TlsCertPath, conf.Web.TlsKeyPath, conf.Web.RootDirPath, conf.Web.CacheDirPath, conf.Web.Release, cmdArgs.verbose)
+	server := server.NewServer(
+		conf.Web.AddrPort,
+		conf.Web.TlsCertPath,
+		conf.Web.TlsKeyPath,
+		conf.Web.RootDirPath,
+		conf.Web.CacheDirPath,
+		conf.Web.Release,
+		cmdArgs.verbose)
 	server.Start()
 	signalWait()
 	server.Stop()

@@ -2,6 +2,7 @@ package builder
 
 import (
         "fmt"
+        "math"
         "os"
         "log"
         "sort"
@@ -21,6 +22,7 @@ import (
 
 const timeRangeRegexpExpr = "[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?(([ 　]*[~-→～－―][ 　]*[0-9]{1,2}:[0-9]{1,2}(:[0-9]{1,2})?)|([ 　]*@[ 　]*([0-9]+[hH])?([0-9]+[mM])?([0-9]+[sS])?))?"
 const startEndSepRegexExpr = "[~-→～－―]"
+const daySepRegexExpr = "[dD]"
 const hourSepRegexExpr = "[hH]"
 const minSepRegexExpr = "[mM]"
 const secSepRegexExpr = "[sS]"
@@ -67,11 +69,14 @@ type Builder struct {
 	verbose               bool
 	timeRangeRegexp       *regexp.Regexp
 	startEndSepRegexp     *regexp.Regexp
+	daySepRegexp          *regexp.Regexp
 	hourSepRegexp         *regexp.Regexp
 	minSepRegexp          *regexp.Regexp
 	secSepRegexp          *regexp.Regexp
 	maxDuration           int64
 	adjustStartTimeSpan   int64
+	autoDetectUnitSpan    int64
+	autoDetectThreshold   float64
 	templates             *template.Template
 }
 
@@ -142,7 +147,21 @@ func (b *Builder)timeStringToSeconds(timeString string) (int64) {
 func (b *Builder)durationStringToSeconds(durationString string) (int64) {
 	// parse 1h2m3s, 1h2m 1h3s, 1m2s, 1s
 	var seconds int64
-	elems := b.hourSepRegexp.Split(durationString, 2)
+	durationString = strings.TrimPrefix(durationString, "PT")
+	elems := b.daySepRegexp.Split(durationString, 2)
+	if len(elems) == 2 {
+		dayString := elems[0]
+		day, err := strconv.ParseInt(strings.TrimSpace(dayString), 10, 64)
+		if err != nil {
+			if b.verbose {
+				log.Printf("can not parse day string (dayString = %v, durationString = %v)", dayString, durationString)
+			}
+			return 0
+		}
+		seconds += day * 86400
+		durationString = elems[1]
+	}
+	elems = b.hourSepRegexp.Split(durationString, 2)
 	if len(elems) == 2 {
 		hourString := elems[0]
 		hour, err := strconv.ParseInt(strings.TrimSpace(hourString), 10, 64)
@@ -284,15 +303,31 @@ func (b *Builder)adjustTimRanges(timeRanges []*timeRangeProperty) ([]*timeRangeP
 	return timeRanges
 }
 
+func (b *Builder)computeStandardEeviationThreshold(counts[]float64) (float64) {
+	var total float64
+	var n float64 = (float64)(len(counts))
+	for _, count := range counts {
+		total += count
+	}
+	average := total / n
+	var powTotal float64
+	for _, count := range counts {
+		powTotal += math.Pow(average - count, 2)
+	}
+	return average + (math.Sqrt(powTotal/n) * b.autoDetectThreshold)
+}
+
+
 func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelProperty, error) {
 	// create channel property
-	comments, err := b.databaseOperator.GetAllCommentsByChannelIdAndLikeText(channel.ChannelId, "%:%")
-	if err != nil {
-		return nil, errors.Wrapf(err, "can not get comments from database (channelId = %v)", channel.ChannelId)
-	}
 	channelProp := &channelProperty{
 		videos: make([]*videoProperty, 0),
 		videosDupCheckMap: make(map[string]int),
+	}
+	// comments
+	comments, err := b.databaseOperator.GetAllCommentsByChannelIdAndLikeText(channel.ChannelId, "%:%")
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not get comments from database (channelId = %v)", channel.ChannelId)
 	}
 	for _, comment := range comments {
 		video, ok, err := b.databaseOperator.GetVideoByVideoId(comment.VideoId)
@@ -310,6 +345,10 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				log.Printf("skip comment because unembeddable video (videoId = %v, commentId = %v)", comment.VideoId, comment.CommentId)
 			}
 			continue
+		}
+		duration := b.durationStringToSeconds(video.Duration)
+		if b.verbose {
+			log.Printf("video duration = %v", duration)
 		}
 		idx, ok := channelProp.videosDupCheckMap[comment.VideoId]
 		if !ok {
@@ -330,6 +369,18 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 		// convert text to time ranges
 		timeRanges := b.parseTimeRanges(comment.TextOriginal)
 		for _, timeRange := range timeRanges {
+			if timeRange.start > duration {
+				if b.verbose {
+					log.Printf("time range start over duration (%v, %v)", timeRange.start, duration)
+				}
+				timeRange.start = duration
+			}
+			if timeRange.end > duration {
+				if b.verbose {
+					log.Printf("time range end over duration (%v, %v)", timeRange.end, duration)
+				}
+				timeRange.end = duration
+			}
 			timeRangeProp := &timeRangeProperty{
 				start: timeRange.start,
 				end: timeRange.end,
@@ -350,16 +401,98 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
 		}
 	}
-
-
-
-
-
-
-
-
-
-
+	// live chat comments
+	videos, err := b.databaseOperator.GetVideosByChannelId(channel.ChannelId)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not get videos from database (channelId = %v)", channel.ChannelId)
+	}
+	for _, video := range videos {
+		if !video.StatusEmbeddable {
+			if b.verbose {
+				log.Printf("skip live chat comments because unembeddable video (channelId = %v, videoId = %v)", channel.ChannelId, video.VideoId)
+			}
+			continue
+		}
+		duration := b.durationStringToSeconds(video.Duration)
+		if b.verbose {
+			log.Printf("video duration = %v", duration)
+		}
+		liveChatComments, err := b.databaseOperator.GetLiveChatCommentsByVideoId(video.VideoId)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can not get live chat comment from database (channelId = %v, videoId = %v)", channel.ChannelId, video.VideoId)
+		}
+		size := (duration / b.autoDetectUnitSpan) + 1
+		counts := make([]float64, size, size)
+		for _, liveChatComment := range liveChatComments {
+			offsetMsec, err := strconv.ParseInt(liveChatComment.VideoOffsetTimeMsec, 10, 64)
+			if err != nil {
+				log.Printf("can not parse videoOffsetTimeMsec (%v)", liveChatComment.VideoOffsetTimeMsec)
+				continue
+			}
+			offset := offsetMsec / 1000
+			if offset < 0 || offset > duration {
+				continue
+			}
+			idx := offset / b.autoDetectUnitSpan
+			if liveChatComment.PurchaseAmountText != "" {
+				counts[idx] += 2
+			} else {
+				counts[idx] += 1
+			}
+		}
+		// 標準偏差を求める
+		threshold := b.computeStandardEeviationThreshold(counts)
+		if b.verbose {
+			log.Printf("count threshold = %v", threshold)
+		}
+		for i, c := range counts {
+			if c > threshold {
+				idx, ok := channelProp.videosDupCheckMap[video.VideoId]
+				if !ok {
+					videoProp := &videoProperty{
+						videoId: video.VideoId,
+						title: video.Title,
+						updateAt: video.PublishdAt,
+						timeRanges: make([]*timeRangeProperty, 0),
+					}
+					idx = len(channelProp.videos)
+					channelProp.videos = append(channelProp.videos, videoProp)
+					channelProp.videosDupCheckMap[video.VideoId] = idx
+				}
+				videoProp := channelProp.videos[idx]
+				if videoProp.updateAt < video.PublishdAt {
+					videoProp.updateAt = video.PublishdAt
+				}
+				start := ((int64)(i) * b.autoDetectUnitSpan) - b.adjustStartTimeSpan
+				if start < 0 {
+					start = 0;
+				}
+				end := ((int64)(i) * b.autoDetectUnitSpan) + b.adjustStartTimeSpan
+				if end > duration {
+					end = duration;
+				}
+				timeRangeProp := &timeRangeProperty{
+					start: start,
+					end: end,
+					comments: make([]*commentProperty, 0),
+					commentsDupCheckMap: make(map[string]bool),
+				}
+				commentId := fmt.Sprintf("AD.%v.%v.%v.%v.%v", channel.ChannelId, video.VideoId, i, c, b.autoDetectUnitSpan)
+				commentProperty := &commentProperty{
+					commentId: commentId,
+					author: "Automatic detection by clipper",
+					authorImage: "",
+					text: fmt.Sprintf("Automatic detection score %v", c),
+				}
+				_, ok = timeRangeProp.commentsDupCheckMap[commentId]
+				if !ok {
+					timeRangeProp.comments = append(timeRangeProp.comments, commentProperty)
+					timeRangeProp.commentsDupCheckMap[commentId] = true
+				}
+				videoProp.timeRanges = append(videoProp.timeRanges, timeRangeProp)
+			}
+		}
+	}
 	// sort and adjust
 	sort.Slice(channelProp.videos, func(i, j int) bool {
 		return channelProp.videos[i].updateAt > channelProp.videos[j].updateAt
@@ -491,7 +624,16 @@ func (b *Builder)Build(rebuild bool) (error) {
 	return nil
 }
 
-func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, adjustStartTimeSpan int64, channels youtubedataapi.Channels, databaseOperator *database.DatabaseOperator, verbose bool) (*Builder, error)  {
+func NewBuilder(
+	sourceDirPath string,
+	buildDirPath string,
+	maxDuration int64,
+	adjustStartTimeSpan int64,
+	autoDetectUnitSpan int64,
+	autoDetectThreshold float64,
+	channels youtubedataapi.Channels,
+	databaseOperator *database.DatabaseOperator,
+	verbose bool) (*Builder, error)  {
         if buildDirPath == "" {
                 return nil, errors.New("no build directory path")
         }
@@ -514,6 +656,10 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 	startEndSepRegexp, err := regexp.Compile(startEndSepRegexExpr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not compile startEndSepRegexExpr (%v)", startEndSepRegexExpr)
+	}
+	daySepRegexp, err := regexp.Compile(daySepRegexExpr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not compile daySepRegexExpr (%v)", daySepRegexExpr)
 	}
 	hourSepRegexp, err := regexp.Compile(hourSepRegexExpr)
 	if err != nil {
@@ -563,11 +709,14 @@ func NewBuilder(sourceDirPath string, buildDirPath string, maxDuration int64, ad
 		verbose: verbose,
 		timeRangeRegexp: timeRangeRegexp,
 		startEndSepRegexp: startEndSepRegexp,
+		daySepRegexp: daySepRegexp,
 		hourSepRegexp: hourSepRegexp,
 		minSepRegexp: minSepRegexp,
 		secSepRegexp: secSepRegexp,
 		maxDuration: maxDuration,
 		adjustStartTimeSpan: adjustStartTimeSpan,
+		autoDetectUnitSpan: autoDetectUnitSpan,
+		autoDetectThreshold: autoDetectThreshold,
 		templates: templates,
 	}, nil
 }
