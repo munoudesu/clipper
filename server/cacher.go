@@ -45,20 +45,50 @@ func (c *cacher) containsEtag(ifNoneMatch string, etag string) (bool) {
 }
 
 func (c *cacher) getData(urlDataFilePath string, ifNoneMatch string, ifModifiedSince string) ([]byte, []byte, string, string, time.Time, bool, bool) {
+	if c.verbose {
+		log.Printf("path = %v, ifNoneMatch = %v, ifModifiedSince = %v", urlDataFilePath, ifNoneMatch, ifModifiedSince)
+	}
 	dataFilePath := filepath.Join(c.cacheDirPath, urlDataFilePath)
 	fileCache, ok := c.getFileCache(dataFilePath)
 	if !ok {
 		return nil, nil, "", "", time.Time{}, false, false
 	}
 	etag := fmt.Sprintf("\"%v\"", string(fileCache.sha1Digest))
-	if ifNoneMatch != "" && c.containsEtag(ifNoneMatch, etag) {
-		return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, false, ok
+	if c.verbose {
+		log.Printf("etag = %v", etag)
+	}
+	if ifNoneMatch != "" {
+		if c.containsEtag(ifNoneMatch, etag) {
+			if c.verbose {
+				log.Printf("not modified with ifNoneMatch (ifModifiedSince = %v, etag = %v)", ifNoneMatch, etag)
+			}
+			return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, false, ok
+		} else {
+			if c.verbose {
+				log.Printf("return new cache with ifNoneMatch")
+			}
+			return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, true, ok
+		}
 	}
 	if ifModifiedSince != "" {
 		parsedIfModifiedSince, err := http.ParseTime(ifModifiedSince)
-		if err == nil && parsedIfModifiedSince.After(fileCache.createAt) {
-			return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, false, ok
+		if c.verbose {
+			log.Printf("parsed if modified since = %v", parsedIfModifiedSince)
 		}
+		if err == nil && parsedIfModifiedSince.After(fileCache.createAt) {
+			if c.verbose {
+				log.Printf("not modified with ifModifiedSince (ifModifiedSince = %v, createAt = %v)", parsedIfModifiedSince, fileCache.createAt)
+			}
+			return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, false, ok
+		} else {
+			if c.verbose {
+				log.Printf("return new cache with ifModifiedSince")
+			}
+			return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, true, ok
+		}
+	}
+	if c.verbose {
+		log.Printf("return new cache")
 	}
 	return fileCache.rawData, fileCache.gzipData, fileCache.mineType, etag, fileCache.createAt, true, ok
 }
@@ -112,7 +142,7 @@ func (c *cacher) updateMain(dataFilePath string, digestFilePath string, dataFile
 		dataFileExt := filepath.Ext(dataFilePath)
 		mineType := mime.TypeByExtension(dataFileExt)
 		newFileCache := &fileCache {
-			createAt: time.Now(),
+			createAt: time.Now().UTC(),
 			digestFilModTime: digestFile.ModTime(),
 			dataFilModTime: digestFile.ModTime(),
 			sha1Digest: sha1Digest,
@@ -150,7 +180,7 @@ func (c *cacher) updateMain(dataFilePath string, digestFilePath string, dataFile
 	dataFileExt := filepath.Ext(dataFilePath)
 	newMineType := mime.TypeByExtension(dataFileExt)
 	newFileCache := &fileCache {
-		createAt: time.Now(),
+		createAt: time.Now().UTC(),
 		digestFilModTime: digestFile.ModTime(),
 		dataFilModTime: dataFile.ModTime(),
 		sha1Digest: newSha1Digest,
