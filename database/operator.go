@@ -700,13 +700,14 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
                 embedHeight,
                 embedWidth,
                 embedHtml,
+                statusPrivacyStatus,
                 statusUploadStatus,
                 statusEmbeddable,
 		responseEtag
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-		?, ?, ?, ?, ?, ?, ?, ?, ?
+		?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )`,
 	    video.VideoId,
 	    video.Etag,
