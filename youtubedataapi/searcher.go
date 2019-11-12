@@ -258,6 +258,7 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 		EmbedWidth: item.Player.EmbedWidth,
 		EmbedHeight: item.Player.EmbedHeight,
 		EmbedHtml: item.Player.EmbedHtml,
+		StatusPrivacyStatus: item.Status.PrivacyStatus,
 		StatusUploadStatus: item.Status.UploadStatus,
 		StatusEmbeddable : item.Status.Embeddable,
 		ResponseEtag: videoListResponse.Etag,

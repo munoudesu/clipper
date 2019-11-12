@@ -62,6 +62,7 @@ type Video struct {
 	EmbedHeight                  int64
 	EmbedWidth                   int64
 	EmbedHtml                    string
+        StatusPrivacyStatus          string
         StatusUploadStatus           string
         StatusEmbeddable             bool
 	ResponseEtag                 string
@@ -733,6 +734,7 @@ func (d *DatabaseOperator) UpdateVideo(video *Video) (error) {
 	    video.EmbedHeight,
 	    video.EmbedWidth,
 	    video.EmbedHtml,
+	    video.StatusPrivacyStatus,
 	    video.StatusUploadStatus,
             video.StatusEmbeddable,
 	    video.ResponseEtag,
@@ -789,6 +791,7 @@ func (d *DatabaseOperator) GetOldVideosByChannelIdAndOffset(channelId string, of
 		    &video.EmbedHeight,
 		    &video.EmbedWidth,
 		    &video.EmbedHtml,
+                    &video.StatusPrivacyStatus,
                     &video.StatusUploadStatus,
                     &video.StatusEmbeddable,
 		    &video.ResponseEtag,
@@ -838,6 +841,7 @@ func (d *DatabaseOperator) GetVideosByChannelId(channelId string) ([]*Video, err
 		    &video.EmbedHeight,
 		    &video.EmbedWidth,
 		    &video.EmbedHtml,
+                    &video.StatusPrivacyStatus,
                     &video.StatusUploadStatus,
                     &video.StatusEmbeddable,
 		    &video.ResponseEtag,
@@ -886,6 +890,7 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*Video, bool, erro
 		    &video.EmbedHeight,
 		    &video.EmbedWidth,
 		    &video.EmbedHtml,
+                    &video.StatusPrivacyStatus,
                     &video.StatusUploadStatus,
                     &video.StatusEmbeddable,
 		    &video.ResponseEtag,
@@ -1116,6 +1121,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		embedHeight                  INTEGER NOT NULL,
 		embedWidth                   INTEGER NOT NULL,
 		embedHtml                    TEXT NOT NULL,
+		statusPrivacyStatus          TEXT NOT NULL,
                 statusUploadStatus           TEXT NOT NULL,
                 statusEmbeddable             INTEGER NOT NULL,
 		responseEtag                 TEXT NOT NULL
