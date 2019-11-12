@@ -293,7 +293,6 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
         searchService := youtube.NewSearchService(s.getYoutubeService())
         pageToken := ""
 	publishedAfter := time.Now().UTC().AddDate(0, 0, -30).Format(time.RFC3339)
-	var foundVideos int64
         for loop := s.maxVideos; loop > 0; loop -= 50{
 		maxResults := loop
 		if maxResults > 50 {
@@ -320,7 +319,6 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
                 if err != nil {
 			return errors.Wrapf(err, "can not do search list call (channelId = %v)", channel.ChannelId)
                 }
-		foundVideos += (int64)(len(searchListResponse.Items))
                 for _, item := range searchListResponse.Items {
 			video, ok, err := s.databaseOperator.GetVideoByVideoId(item.Id.VideoId)
 			if err != nil {
@@ -385,9 +383,9 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
                 break
         }
 	// delete old videos by count
-	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, foundVideos)
+	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, s.maxVideos)
 	if err != nil {
-		return errors.Wrapf(err, "can not get old videos (channelId = %v, foundVideos = %vv)", channel.ChannelId, foundVideos)
+		return errors.Wrapf(err, "can not get old videos (channelId = %v, maxVideos = %vv)", channel.ChannelId, s.maxVideos)
 	}
 	for _, video := range videos {
 		err := s.databaseOperator.DeleteVideoByVideoId(video.VideoId)
