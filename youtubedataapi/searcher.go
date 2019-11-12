@@ -289,6 +289,7 @@ func (s *Searcher)getVideoByVideoId(channel *Channel, videoId string, etag strin
 
 func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (error) {
 	// search new videos
+	searchVideoIdExistsMap := make(map[string]bool)
         searchService := youtube.NewSearchService(s.getYoutubeService())
         pageToken := ""
 	publishedAfter := time.Now().UTC().AddDate(0, 0, -30).Format(time.RFC3339)
@@ -358,6 +359,7 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 				if err != nil {
 					return errors.Wrapf(err, "can not update video (videoId = %v)", newVideo.VideoId)
 				}
+				searchVideoIdExistsMap[newVideo.VideoId] = true
 			} else {
 				newVideo, _, notFound, err := s.getVideoByVideoId(channel, item.Id.VideoId, "")
 				if err != nil {
@@ -373,6 +375,7 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 				if err != nil {
 					return errors.Wrapf(err, "can not update video (videoId = %v)", newVideo.VideoId)
 				}
+				searchVideoIdExistsMap[newVideo.VideoId] = true
 			}
                 }
                 if searchListResponse.NextPageToken != "" {
@@ -381,12 +384,43 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
                 }
                 break
         }
-	// delete old videos
+	// delete old videos by count
 	videos, err := s.databaseOperator.GetOldVideosByChannelIdAndOffset(channel.ChannelId, foundVideos)
 	if err != nil {
 		return errors.Wrapf(err, "can not get old videos (channelId = %v, foundVideos = %vv)", channel.ChannelId, foundVideos)
 	}
 	for _, video := range videos {
+		err := s.databaseOperator.DeleteVideoByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old videos (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.DeleteCommentThreadsByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old comment threads (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.DeleteTopLevelCommentsByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old topLevelComments (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.DeleteReplyCommentsByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old replyComments (videoId = %vv)", video.VideoId)
+		}
+		err = s.databaseOperator.DeleteLiveChatCommentsByVideoId(video.VideoId)
+		if err != nil {
+			return errors.Wrapf(err, "can not delete old liveChatComments (videoId = %vv)", video.VideoId)
+		}
+	}
+	// delete not found videos
+	videos, err = s.databaseOperator.GetVideosByChannelId(channel.ChannelId)
+	if err != nil {
+		return errors.Wrapf(err, "can not get videos from database")
+	}
+	for _, video := range videos {
+		_, ok := searchVideoIdExistsMap[video.VideoId]
+		if ok {
+			continue
+		}
 		err := s.databaseOperator.DeleteVideoByVideoId(video.VideoId)
 		if err != nil {
 			return errors.Wrapf(err, "can not delete old videos (videoId = %vv)", video.VideoId)
