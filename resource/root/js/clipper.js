@@ -148,6 +148,24 @@ var app = new Vue({
 			this.clipVideoTitle = clip.Title;
 
 		},
+		randomEnable: function() {
+			this.random = true;
+			this.createShuffleClips();
+		},
+		randomDisable: function() {
+			this.random = false;
+		},
+		createShuffleClips: function() {
+			this.shuffleClipsIndexes = [];
+			this.clipsIndex = 0;
+			while (true) {
+				this.shuffleClipsIndexes.push(this.clipIndex);
+				this.getNextClip();
+				if (this.clipsIndex == 0) {
+					break;
+				}
+			}
+		},
 		youtubePlayerInit: function() {
 			let tag = document.createElement('script');
 			tag.src = "https://www.youtube.com/iframe_api";
@@ -180,16 +198,13 @@ var app = new Vue({
 		},
 		youtubePlayerLoadNext: function() {
 			clip = this.getNextClip();
-			this.lastClip = clip;
-			this.updateClipView(clip)
-			this.youtubePlayer.loadVideoById({
-				videoId: clip.VideoId,
-				startSeconds: clip.Start,
-				endSeconds: clip.End
-			});
+			this.youtubePlayerLoad(clip);
 		},
 		youtubePlayerLoadPrevious: function() {
 			clip = this.getPreviousClip();
+			this.youtubePlayerLoad(clip);
+		},
+		youtubePlayerLoad: function(clip) {
 			this.lastClip = clip;
 			this.updateClipView(clip)
 			this.youtubePlayer.loadVideoById({

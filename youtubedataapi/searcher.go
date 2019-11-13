@@ -320,6 +320,7 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 			return errors.Wrapf(err, "can not do search list call (channelId = %v)", channel.ChannelId)
                 }
                 for _, item := range searchListResponse.Items {
+			searchVideoIdExistsMap[item.Id.VideoId] = true
 			video, ok, err := s.databaseOperator.GetVideoByVideoId(item.Id.VideoId)
 			if err != nil {
 				return errors.Wrapf(err, "can not get video by videoId from database (videoId = %v)", item.Id.VideoId)
@@ -357,7 +358,6 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 				if err != nil {
 					return errors.Wrapf(err, "can not update video (videoId = %v)", newVideo.VideoId)
 				}
-				searchVideoIdExistsMap[newVideo.VideoId] = true
 			} else {
 				newVideo, _, notFound, err := s.getVideoByVideoId(channel, item.Id.VideoId, "")
 				if err != nil {
@@ -373,7 +373,6 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 				if err != nil {
 					return errors.Wrapf(err, "can not update video (videoId = %v)", newVideo.VideoId)
 				}
-				searchVideoIdExistsMap[newVideo.VideoId] = true
 			}
                 }
                 if searchListResponse.NextPageToken != "" {
