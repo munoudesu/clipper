@@ -183,7 +183,7 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 			cmdArgs.verbose)
 		err := notifier.Notify(cmdArgs.renotify)
 		if err != nil {
-			log.Printf("can not notigy: %v", err)
+			log.Printf("can not notify: %v", err)
 			os.Exit(1)
 		}
 	}

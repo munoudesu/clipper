@@ -16,6 +16,9 @@ var app = new Vue({
 		showSettingContent: false,
 		showDescriptionContent: false,
 		lastClip: null,
+		random: false,
+		randomIndexesIndex: -1,
+		randomIndexes: null
 	},
 	mounted: function() {
 		this.channelId = document.getElementById('channelId').value;
@@ -87,7 +90,7 @@ var app = new Vue({
 					clip.Duration = clip.End - clip.Start;
 					return;
 				}
-				nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
+				let nextClip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex + 1]));
 				if (clip.VideoId != nextClip.VideoId) {
 					// 次のクリップとビデオが一致しない
 					clip.Duration = clip.End - clip.Start;
@@ -129,6 +132,18 @@ var app = new Vue({
 				this.clipsIndex = this.clips.length -1;
 			}
 		},
+		incrementRandomIndexesIndex: function() {
+			this.randomIndexesIndex += 1;
+			if (this.randomIndexesIndex >= this.randomIndexes.length) {
+				this.randomIndexesIndex = 0;
+			}
+		},
+		decrementRandomIndexesIndex: function() {
+			this.randomIndexesIndex -= 1;
+			if (this.randomIndexesIndex < 0) {
+				this.randomIndexesIndex = this.randomIndexes.length -1;
+			}
+		},
 		getClip: function() {
 			let clip = JSON.parse(JSON.stringify(this.clips[this.clipsIndex]));
 			this.fixClipDuration(clip);
@@ -142,6 +157,16 @@ var app = new Vue({
 			this.decrementIndex();
 			return this.getClip();
 		},
+		getNextRandomClip: function() {
+			this.incrementRandomIndexesIndex();
+			this.clipsIndex = this.randomIndexes[this.randomIndexesIndex]
+			return this.getClip();
+		},
+		getPreviousRandomClip: function() {
+			this.decrementRandomIndexesIndex();
+			this.clipsIndex = this.randomIndexes[this.randomIndexesIndex]
+			return this.getClip();
+		},
 		updateClipView: function(clip) {
 			this.originUrl = this.makeOriginUrl(clip);
 			this.clipRecommenders = "推薦者:" + clip.Recommenders.join("さん, ") + "さん";
@@ -150,20 +175,35 @@ var app = new Vue({
 		},
 		randomEnable: function() {
 			this.random = true;
-			this.createShuffleClips();
+			this.createRandomIndexes();
+			this.randomIndexesIndex = 0;
+			this.clipsIndex = this.randomIndexes[this.randomIndexesIndex];
+			let clip = this.getClip();
+			this.youtubePlayerLoad(clip);
 		},
 		randomDisable: function() {
 			this.random = false;
-		},
-		createShuffleClips: function() {
-			this.shuffleClipsIndexes = [];
 			this.clipsIndex = 0;
+			let clip = this.getClip();
+			this.youtubePlayerLoad(clip);
+		},
+		createRandomIndexes: function() {
+			this.randomIndexes = [];
+			this.clipsIndex = 0;
+			this.randomIndexes.push(this.clipsIndex);
 			while (true) {
-				this.shuffleClipsIndexes.push(this.clipIndex);
 				this.getNextClip();
-				if (this.clipsIndex == 0) {
+				this.randomIndexes.push(this.clipsIndex);
+				if (this.clipsIndex >= this.clips.length - 1 || this.clipsIndex == 0) {
 					break;
 				}
+			}
+			//shuffle
+			for (let i = this.randomIndexes.length - 1; i >= 0; i--){
+				let rand = Math.floor(Math.random() * (i + 1));
+				let tmp = this.randomIndexes[i];
+				this.randomIndexes[i] = this.randomIndexes[rand];
+				this.randomIndexes[rand] = tmp;
 			}
 		},
 		youtubePlayerInit: function() {
@@ -197,12 +237,22 @@ var app = new Vue({
 			});
 		},
 		youtubePlayerLoadNext: function() {
-			clip = this.getNextClip();
-			this.youtubePlayerLoad(clip);
+			if (this.random == true) {
+				let clip = this.getNextRandomClip();
+				this.youtubePlayerLoad(clip);
+			} else {
+				let clip = this.getNextClip();
+				this.youtubePlayerLoad(clip);
+			}
 		},
 		youtubePlayerLoadPrevious: function() {
-			clip = this.getPreviousClip();
-			this.youtubePlayerLoad(clip);
+			if (this.random == true) {
+				let clip = this.getPreviousRandomClip();
+				this.youtubePlayerLoad(clip);
+			} else {
+				let clip = this.getPreviousClip();
+				this.youtubePlayerLoad(clip);
+			}
 		},
 		youtubePlayerLoad: function(clip) {
 			this.lastClip = clip;
