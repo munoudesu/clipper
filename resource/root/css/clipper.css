@@ -57,7 +57,14 @@ button.customButton {
 
 button.customButton:hover {
 	background-color: #c0c0c0;
-	color: #ffffff;
+}
+
+button.customButtonActive {
+	background-color: #a0a0ff;
+}
+
+button.customButtonActive:hover {
+	background-color: #c0c0ee;
 }
 
 div.modal {

@@ -173,6 +173,13 @@ var app = new Vue({
 			this.clipVideoTitle = clip.Title;
 
 		},
+		toggleRandomPlay: function() {
+			if (this.random) {
+				this.randomDisable();
+			} else {
+				this.randomEnable();
+			}
+		},
 		randomEnable: function() {
 			this.random = true;
 			this.createRandomIndexes();
