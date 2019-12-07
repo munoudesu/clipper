@@ -12,7 +12,8 @@ import (
 )
 
 type User struct {
-        Tags []string `toml: "tags"`
+        Tags    []string `toml: "tags"`
+	Comment string   `toml: "comment"`
 }
 
 type Users map[string]*User
@@ -20,7 +21,6 @@ type Users map[string]*User
 type Notifier struct {
 	apiKeyAccessToken *ApiKeyAccessToken
 	tweetLinkRoot     string
-	tweetComment      string
 	channels          youtubedataapi.Channels
 	users             Users
 	databaseOperator  *database.DatabaseOperator
@@ -61,7 +61,7 @@ func (n *Notifier)Notify(renotify bool) (error) {
 		if ok {
 			tagText = strings.Join(user.Tags, "\n")
 		}
-		tweetText := n.tweetComment + "\n" + tagText + "\n" + n.tweetLinkRoot + channel.ChannelId + ".html"
+		tweetText := user.Comment + "\n" + tagText + "\n" + n.tweetLinkRoot + channel.ChannelId + ".html"
 		tweet, res, err := n.twitterClient.Statuses.Update(tweetText, nil)
 		if err != nil {
 			return errors.Wrapf(err,"can not post new tweet (channelId = %v)", channel.ChannelId)
@@ -77,7 +77,7 @@ func (n *Notifier)Notify(renotify bool) (error) {
 	return nil
 }
 
-func NewNotifier(apiKeyAccessToken *ApiKeyAccessToken, tweetLinkRoot string, tweetComment string, channels youtubedataapi.Channels, users Users, databaseOperator *database.DatabaseOperator, verbose bool) (*Notifier) {
+func NewNotifier(apiKeyAccessToken *ApiKeyAccessToken, tweetLinkRoot string, channels youtubedataapi.Channels, users Users, databaseOperator *database.DatabaseOperator, verbose bool) (*Notifier) {
 	config := oauth1.NewConfig(apiKeyAccessToken.ApiKey, apiKeyAccessToken.ApiSecretKey)
 	token := oauth1.NewToken(apiKeyAccessToken.AccessToken, apiKeyAccessToken.AccessTokenSecret)
 	ctx := context.Background()
@@ -86,7 +86,6 @@ func NewNotifier(apiKeyAccessToken *ApiKeyAccessToken, tweetLinkRoot string, twe
 	return &Notifier {
 		apiKeyAccessToken: apiKeyAccessToken,
 		tweetLinkRoot: tweetLinkRoot,
-		tweetComment: tweetComment,
 		channels: channels,
 		users: users,
 		databaseOperator: databaseOperator,

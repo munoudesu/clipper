@@ -78,13 +78,13 @@ sudo systemctl start clipper.service
 - twitterセクション
   - tweetLinkRoot
     - ツイートに含めるリンクのURLを指定します。
-  - tweetComment
-    - ツイートに含めるコメントを指定します。
 - twitter.usersセクション
   - twitter.users.任意の名前
     - 任意の名前を指定します。youtube.channelsセクションの任意の名前と同じになる必要があります。
   - tags
     - ツイートに含めたいタグリストを指定します。
+  - comment
+    - ツイートに含めるコメントを指定します。
 - buulderセクション
   - maxDuration
     - ムービークリップの時間の最大を指定します。これ以上長い場合はこの時間に調整されます。

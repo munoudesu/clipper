@@ -26,7 +26,6 @@ type clipperYoutubeConfig struct {
 type clipperTwitterConfig struct {
 	ApiKeyFile    string           `toml:"apiKeyFile"`
 	TweetLinkRoot string           `toml:"tweetLinkRoot"`
-	TweetComment  string           `toml:"tweetComment"`
 	Users         twitterapi.Users `toml:"users"`
 }
 
@@ -176,7 +175,6 @@ func crawl(conf *clipperConfig, cmdArgs *commandArguments) {
 		notifier := twitterapi.NewNotifier(
 			twitterApiKeyAccessToken,
 			conf.Twitter.TweetLinkRoot,
-			conf.Twitter.TweetComment,
 			conf.Youtube.Channels,
 			conf.Twitter.Users,
 			databaseOperator,
