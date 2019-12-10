@@ -561,17 +561,6 @@ func (b *Builder)Build(rebuild bool) (error) {
 		}
 		dbChannels = append(dbChannels, dbChannel)
 	}
-	// create index.html
-	indexHtmlPath := filepath.Join(b.buildRootDirPath, "index.html")
-	indexHtmlFile, err := os.OpenFile(indexHtmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtmlPath)
-	}
-	defer indexHtmlFile.Close()
-	err = b.templates.ExecuteTemplate(indexHtmlFile, "index.tmpl", dbChannels)
-	if err != nil {
-		return errors.Wrapf(err, "can not write to index html file (path = %v)", indexHtmlPath)
-	}
 	// create channel page
 	for _, dbChannel := range dbChannels {
 		pageHtmlPath := filepath.Join(b.buildRootDirPath, dbChannel.ChannelId + ".html")
@@ -585,7 +574,19 @@ func (b *Builder)Build(rebuild bool) (error) {
 			return errors.Wrapf(err, "can not write to page html file (path = %v)", pageHtmlPath)
 		}
 	}
-	// create page prop
+	// create index.html
+	indexHtmlPath := filepath.Join(b.buildRootDirPath, "index.html")
+	indexHtmlFile, err := os.OpenFile(indexHtmlPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return errors.Wrapf(err, "can not open index html file (path = %v)", indexHtmlPath)
+	}
+	defer indexHtmlFile.Close()
+	err = b.templates.ExecuteTemplate(indexHtmlFile, "index.tmpl", dbChannels)
+	if err != nil {
+		return errors.Wrapf(err, "can not write to index html file (path = %v)", indexHtmlPath)
+	}
+	// create channel page in database
+	somethingModified := false
 	for _, dbChannel := range dbChannels {
 		lastChannelPage, lastChannelPageOk, err := b.databaseOperator.GetChannelPageByChannelId(dbChannel.ChannelId)
                 if err != nil {
@@ -602,10 +603,11 @@ func (b *Builder)Build(rebuild bool) (error) {
 		newChannelPageSha1Digest := fmt.Sprintf("%x", sha1.Sum(clipsJsonBytes))
 		if !rebuild && lastChannelPageOk && lastChannelPage.Sha1Digest == newChannelPageSha1Digest {
 			if b.verbose {
-				log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
+				log.Printf("skip because same sha1 digest of channel page (oldSha1Digest = %v, newSha1Digest = %v)", lastChannelPage.Sha1Digest, newChannelPageSha1Digest)
 			}
 			continue
 		}
+		somethingModified = true
 		channelPageJsonPath := filepath.Join(b.buildCacheDirPath, dbChannel.ChannelId + ".json")
 		err = ioutil.WriteFile(channelPageJsonPath, clipsJsonBytes, 0644)
 		if err != nil {
@@ -626,6 +628,27 @@ func (b *Builder)Build(rebuild bool) (error) {
                 if err != nil {
                         return  errors.Wrapf(err, "can not update sha1 digest and dirty of channelPage (channelId = %v, newChannelPageSha1Digest = %v)", dbChannel.ChannelId, newChannelPageSha1Digest)
                 }
+	}
+	// create index page in database
+	lastChannelPage, lastChannelPageOk, err := b.databaseOperator.GetChannelPageByChannelId("index")
+        if err != nil {
+		return  errors.Wrapf(err, "can not get channel page from database (channelId = index)")
+	}
+	if !rebuild && lastChannelPageOk && somethingModified == true {
+		if b.verbose {
+			log.Printf("skip because same sha1 digest of all channel pages")
+		}
+		return nil
+	}
+	var tweetId int64
+	if lastChannelPageOk {
+		tweetId = lastChannelPage.TweetId
+	} else {
+		tweetId = -1
+	}
+	err = b.databaseOperator.UpdateSha1DigestAndDirtyOfChannelPage("index", "", 1, tweetId)
+        if err != nil {
+		return  errors.Wrapf(err, "can not update sha1 digest and dirty of channelPage (channelId = index)")
 	}
 	return nil
 }
