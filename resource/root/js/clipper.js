@@ -3,7 +3,7 @@ var app = new Vue({
 	data:{
 		settings: {
 		},
-		defaultDuration: 150,
+		defaultDuration: 180,
 		settingId: "",
 		channelIdList: [],
 		clipRecommenders: "",
