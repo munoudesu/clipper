@@ -91,3 +91,14 @@ div.modalContent {
 	padding: 20px;
 	background: #f0f0f0;
 }
+
+img.linkImage {
+	opacity: 1;
+	-webkit-transition: .3s ease-in-out;
+	transition: .3s ease-in-out;
+}
+
+img.linkImage:hover {
+	opacity: .5;
+}
+
