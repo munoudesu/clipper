@@ -6,12 +6,80 @@
 <meta name="description" content="This site play movie clips on youtube." />
 <meta name="author" content="munoudesu" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@clipper" />
+<meta name="twitter:title" content="clipper" />
+<meta name="twitter:description" content="This page play movie clips of channels on youtube." />
 <link rel="stylesheet" href="css/clipper.css" />
 <link rel="shortcut icon" href="icon/favicon.ico" />
+<script type="text/javascript" src="js/axios.min.js" charset="utf-8"></script>
 </head>
 <body>
-{{ range . }}
-<a href="{{ .ChannelId }}.html"><img src="{{ .ThumbnailDefaultUrl }}" />{{ .Name }}</a><br />
-{{ end }}
+	<div id="app">
+		<div id="headerContent">
+			<div><button class="customButton" v-on:click="openSetting">設定</button></div>
+			<hr/>
+		</div>
+		<div class="modal" v-show="showSettingContent">
+			<div class="modalContent">
+				<div><input id="settingId" type="hidden" type="text" value="index" /></div>
+				{{ range . }}
+				<div><input class="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
+				{{ end }}
+				<div>標準再生時間: <input v-model.number="defaultDuration" type="number" placeholder="default duration" /></div>
+				<div><button class="customButton" v-on:click="closeSetting">閉じる</button></div>
+			</div>
+		</div>
+		<div id="titleContent">
+			<div id="title">clipper</div>
+		</div>
+		<div id="playerContent">
+			<div> {{ `{{ clipRecommenders }}` }} </div>
+			<div> {{ `{{ clipVideoTitle }}` }} </div>
+			<div id="player"></div>
+			<div id="youtubePagelink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
+			<div id="controllerContent">
+				<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">←前へ</button></span>
+				<span class="customPaddingMiddle"><button class="customButton" v-bind:class="{ customButtonActive: random }" v-on:click="toggleRandomPlay">ランダム再生</button></span>
+				<span class="customPaddingLeft"><button class="customButton" v-on:click="playNextClip">次へ→</button></span>
+			</div>
+		</div>
+                <div id="linksContent">
+			<p>
+			{{ range . }}
+				<a href="{{ .ChannelId }}.html"><img src="{{ .ThumbnailDefaultUrl }}" alt="{{ .Name }}" /></a>
+			{{ end }}
+			</p>
+                </div>
+		<div id="futterContent">
+			<hr/>
+			<div><button class="customButton" v-on:click="openDescription">説明</button></div>
+		</div>
+		<div class="modal" v-show="showDescriptionContent">
+			<div class="modalContent">
+				<div>
+					<p>
+						このページはyoutubeの任意のチャンネルの<br>
+						過去一定量の動画と動画のコメントとライブチャットを一定間隔で収集して、<br>
+						動画のコメントに含まれる時間とライブチャットの速度から<br>
+                                                動画のムービークリップを生成して再生します。<br>
+						動画のコメントからは下記のような時間フォーマットから再生時間を抽出します。<br>
+						尚、終了時間がない場合は開始時間に設定の"標準再生時間"を<br>
+						足した値が終了時間になります。<br>
+						<ul>
+						<li>00:01-00:05 (1秒から5秒まで)</li>
+						<li>00:00:01-00:00:05 (1秒から5秒まで)</li>
+						<li>00:00:01@0h0m4s (1秒から5秒まで)</li>
+						<li>00:01 (1秒から標準再生時間 + 1秒まで)</li>
+						</ul>
+						ソースコードは<a href="https://github.com/munoudesu/clipper">https://github.com/munoudesu/clipper</a>にあります。
+					</p>
+				</div>
+				<div><button class="customButton" v-on:click="closeDescription">閉じる</button></div>
+			</div>
+		</div>
+	</div>
+	<script type="text/javascript" src="js/vue.min.js" charset="utf-8"></script>
+	<script type="text/javascript" src="js/clipper.js" charset="utf-8"></script>
 </body>
 </html>

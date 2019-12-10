@@ -3,13 +3,13 @@ var app = new Vue({
 	data:{
 		settings: {
 		},
-		defaultDuration: 120,
-		channelId: "",
+		defaultDuration: 150,
+		settingId: "",
+		channelIdList: [],
 		clipRecommenders: "",
 		clipVideoTitle: "",
 		originUrl: "",
-		clipsEtag: "",
-		clips: null,
+		clips: [],
 		clipsIndex: -1,
 		youtubePlayer: null,
 		lastYoutubePlayerStatus: -1,
@@ -18,23 +18,31 @@ var app = new Vue({
 		lastClip: null,
 		random: false,
 		randomIndexesIndex: -1,
-		randomIndexes: null
+		randomIndexes: null,
+		playerInitialized: false
 	},
 	mounted: function() {
-		this.channelId = document.getElementById('channelId').value;
-		let pagePropUrl = "../cache/" + this.channelId + ".json";
-		axios.get(pagePropUrl).then(res => {
-			this.clipsEtag = res.headers.etag;
-			this.clips = res.data;
-			this.loadSetting();
-			this.youtubePlayerInit();
-		}).catch(res => {
-			console.log("can not get page property");
-		});
+		this.settingId = document.getElementById('settingId').value;
+		this.loadSetting();
+		let channelIdElements = document.getElementsByClassName('channelId');
+		for (let i = 0; i < channelIdElements.length; i++) {
+			console.log(channelIdElements[i]);
+			this.channelIdList.push(channelIdElements[i].value);
+		}
+		for (let idx in this.channelIdList) {
+			let channelId = this.channelIdList[idx];
+			let pagePropUrl = "../cache/" + channelId + ".json";
+			axios.get(pagePropUrl).then(res => {
+				this.clips = this.clips.concat(res.data);
+				this.youtubePlayerInit();
+			}).catch(res => {
+				console.log("can not get page property");
+			});
+		}
 	},
 	methods: {
 		initSetting: function() {
-			this.settings[this.channelId] = {
+			this.settings[this.settingId] = {
 				defaultDuration: this.defaultDuration
 			};
 		},
@@ -42,8 +50,8 @@ var app = new Vue({
 			if (localStorage.getItem('settings')) {
 				try {
 					this.settings = JSON.parse(localStorage.getItem('settings'));
-					if (this.settings[this.channelId])  {
-						this.defaultDuration = this.settings[this.channelId].defaultDuration;
+					if (this.settings[this.settingId])  {
+						this.defaultDuration = this.settings[this.settingId].defaultDuration;
 					} else {
 						this.initSetting();
 					}
@@ -56,10 +64,10 @@ var app = new Vue({
 			}
 		},
 		saveSetting: function() {
-			if (this.settings[this.channelId]) {
-				this.settings[this.channelId].defaultDuration = this.defaultDuration;
+			if (this.settings[this.settingId]) {
+				this.settings[this.settingId].defaultDuration = this.defaultDuration;
 			} else {
-				this.settings[this.channelId] = {
+				this.settings[this.settingId] = {
 					defaultDuration: this.defaultDuration
 				}
 			}
@@ -81,7 +89,7 @@ var app = new Vue({
 		fixClipDuration: function(clip) {
 			clip.Merge = 0;
 			if (clip.End == 0) {
-				clip.End = clip.Start + this.settings[this.channelId].defaultDuration;
+				clip.End = clip.Start + this.settings[this.settingId].defaultDuration;
 			}
 			while (true) {
 				// 次のクリップの開始時間をチェック
@@ -103,7 +111,7 @@ var app = new Vue({
 				}
 				// 次のクリップの開始と被る場合、次のクリップを含める
 				if (nextClip.End == 0) {
-					clip.End = nextClip.Start + this.settings[this.channelId].defaultDuration;
+					clip.End = nextClip.Start + this.settings[this.settingId].defaultDuration;
 				} else {
 					clip.End = nextClip.End;
 				}
@@ -171,7 +179,6 @@ var app = new Vue({
 			this.originUrl = this.makeOriginUrl(clip);
 			this.clipRecommenders = "推薦者:" + clip.Recommenders.join("さん, ") + "さん";
 			this.clipVideoTitle = clip.Title;
-
 		},
 		toggleRandomPlay: function() {
 			if (this.random) {
@@ -214,14 +221,18 @@ var app = new Vue({
 			}
 		},
 		youtubePlayerInit: function() {
+			if (this.playerInitialized == true) {
+				return;
+			}
 			let tag = document.createElement('script');
 			tag.src = "https://www.youtube.com/iframe_api";
 			let firstScriptTag = document.getElementsByTagName('script')[0];
 			firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+			this.playerInitialized = true;
 		},
 		youtubePlayerCreate: function() {
 			let clip = this.getNextClip();
-			this.updateClipView(clip)
+			this.updateClipView(clip);
 			this.youtubePlayer = new YT.Player('player', {
 				videoId: clip.VideoId,
 				host: 'https://www.youtube.com',
@@ -272,6 +283,9 @@ var app = new Vue({
 		},
 		onYoutubePlayerReady: function(event) {
 			event.target.playVideo();
+			if (this.settingId == "index") {
+				this.randomEnable();
+			}
 		},
 		onYoutubePlayerStateChange: function(event) {
 			let st = event.target.getPlayerState();

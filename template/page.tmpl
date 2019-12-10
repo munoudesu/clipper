@@ -23,7 +23,8 @@
 		</div>
 		<div class="modal" v-show="showSettingContent">
 			<div class="modalContent">
-				<div><input id="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
+				<div><input id="settingId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
+				<div><input class="channelId" type="hidden" type="text" value="{{ .ChannelId }}" /></div>
 				<div>標準再生時間: <input v-model.number="defaultDuration" type="number" placeholder="default duration" /></div>
 				<div><button class="customButton" v-on:click="closeSetting">閉じる</button></div>
 			</div>
