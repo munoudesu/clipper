@@ -634,7 +634,7 @@ func (b *Builder)Build(rebuild bool) (error) {
         if err != nil {
 		return  errors.Wrapf(err, "can not get channel page from database (channelId = index)")
 	}
-	if !rebuild && lastChannelPageOk && somethingModified == true {
+	if !rebuild && lastChannelPageOk && somethingModified == false {
 		if b.verbose {
 			log.Printf("skip because same sha1 digest of all channel pages")
 		}
