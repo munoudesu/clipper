@@ -24,6 +24,7 @@
 
 #linksContent {
 	text-align: center;
+	padding: 5px 250px;
 }
 
 #futterContent {
@@ -40,7 +41,6 @@
 
 body {
 	background: linear-gradient(to bottom, white, #808080);
-	height: 100%;
 }
 
 button.customButton {
@@ -74,10 +74,10 @@ button.customButtonActive:hover {
 div.modal {
 	z-index: 2000;
 	position: fixed;
-	top:0;
-	left:0;
-	width:100%;
-	height:100%;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
 	background-color:rgba(0,0,0,0.4);
 	display: -webkit-flex;
 	display: flex;
@@ -90,6 +90,10 @@ div.modalContent {
 	width: 50%;
 	padding: 20px;
 	background: #f0f0f0;
+}
+
+div.modalButtons {
+	text-align: center;
 }
 
 img.linkImage {
