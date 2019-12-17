@@ -46,11 +46,13 @@
 			</div>
 		</div>
                 <div id="linksContent">
-			<p>
-			{{ range . }}
-				<a href="{{ .ChannelId }}.html"><img class="linkImage" src="{{ .ThumbnailDefaultUrl }}" alt="{{ .Name }}" /></a>
-			{{ end }}
-			</p>
+			<div id="links">
+				<p>
+				{{ range . }}
+					<a href="{{ .ChannelId }}.html"><img class="linkImage" src="{{ .ThumbnailDefaultUrl }}" alt="{{ .Name }}" /></a>
+				{{ end }}
+				</p>
+			</div>
                 </div>
 		<div id="futterContent">
 			<hr/>

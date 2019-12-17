@@ -27,6 +27,10 @@
 	padding: 5px 200px;
 }
 
+#links {
+	text-align: left;
+}
+
 #futterContent {
 	text-align: center;
 }
