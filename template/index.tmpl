@@ -42,18 +42,18 @@
 			<div id="youtubePageLink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
                         <div id="twitterLink"></div>
 			<div id="controllerContent">
-				<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">←前へ</button></span>
-				<span class="customPaddingMiddle"><button class="customButton" v-bind:class="{ customButtonActive: random }" v-on:click="toggleRandomPlay">ランダム再生</button></span>
-				<span class="customPaddingLeft"><button class="customButton" v-on:click="playNextClip">次へ→</button></span>
+				<p>
+					<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">←前へ</button></span>
+					<span class="customPaddingMiddle"><button class="customButton" v-bind:class="{ customButtonActive: random }" v-on:click="toggleRandomPlay">ランダム再生</button></span>
+					<span class="customPaddingLeft"><button class="customButton" v-on:click="playNextClip">次へ→</button></span>
+				</p>
 			</div>
 		</div>
                 <div id="linksContent">
 			<div id="links">
-				<p>
-				{{ range . }}
-					<a href="{{ .ChannelId }}.html"><img class="linkImage" src="{{ .ThumbnailDefaultUrl }}" alt="{{ .Name }}" /></a>
-				{{ end }}
-				</p>
+			{{ range . }}
+				<a href="{{ .ChannelId }}.html"><img class="linkImage" src="{{ .ThumbnailDefaultUrl }}" alt="{{ .Name }}" /></a>
+			{{ end }}
 			</div>
                 </div>
 		<div id="futterContent">
