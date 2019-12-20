@@ -33,6 +33,7 @@ type Channel struct{
 	ThumbnailMediumWidth    int64
 	ThumbnailMediumHeight   int64
 	ResponseEtag            string
+	TwitterName             string
 }
 
 type Video struct {
@@ -923,10 +924,11 @@ func (d *DatabaseOperator) UpdateChannel(channel *Channel) (error) {
                 thumbnailMediumUrl,
                 thumbnailMediumWidth,
                 thumbnailMediumHeight,
-		responseEtag
+		responseEtag,
+		twitterName
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?
             )`,
 	    channel.ChannelId,
 	    channel.Etag,
@@ -945,6 +947,7 @@ func (d *DatabaseOperator) UpdateChannel(channel *Channel) (error) {
 	    channel.ThumbnailMediumWidth,
 	    channel.ThumbnailMediumHeight,
 	    channel.ResponseEtag,
+            channel.TwitterName,
         )
         if err != nil {
                 return errors.Wrap(err, "can not insert channel")
@@ -988,6 +991,7 @@ func (d *DatabaseOperator) GetChannelByChannelId(channelId string) (*Channel, bo
                     &channel.ThumbnailMediumWidth,
                     &channel.ThumbnailMediumHeight,
 		    &channel.ResponseEtag,
+		    &channel.TwitterName,
                 )
                 if err != nil {
                         return nil, false, errors.Wrap(err, "can not scan channel from database")
@@ -1087,7 +1091,8 @@ func (d *DatabaseOperator) createTables() (error) {
 		thumbnailMediumUrl     TEXT NOT NULL,
 		thumbnailMediumWidth   INTEGER NOT NULL,
 		thumbnailMediumHeight  INTEGER NOT NULL,
-		responseEtag           TEXT NOT NULL
+		responseEtag           TEXT NOT NULL,
+                twitterName            TEXT NOT NULL
 	)`
 	_, err := d.db.Exec(channelTableCreateQuery);
 	if  err != nil {

@@ -51,6 +51,7 @@ type videoProperty struct {
 	title         string
 	updateAt      string
 	timeRanges    []*timeRangeProperty
+	twitterName   string
 }
 
 type channelProperty struct {
@@ -88,6 +89,7 @@ type Clip struct {
 	Start        int64
 	End          int64
 	Recommenders []string
+	TwitterName  string
 }
 
 func (b *Builder)timeStringToSeconds(timeString string) (int64) {
@@ -359,6 +361,7 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				title: video.Title,
 				updateAt: comment.UpdateAt,
 				timeRanges: make([]*timeRangeProperty, 0),
+				twitterName: channel.TwitterName,
 			}
 			idx = len(channelProp.videos)
 			channelProp.videos = append(channelProp.videos, videoProp)
@@ -542,6 +545,7 @@ func (b *Builder)buildClips(channel *database.Channel) ([]*Clip, error) {
 				Start: timeRange.start,
 				End: timeRange.end,
 				Recommenders: authors,
+				TwitterName: video.twitterName,
 			}
 			clips = append(clips, clip)
 		}

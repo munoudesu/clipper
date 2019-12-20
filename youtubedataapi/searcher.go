@@ -14,8 +14,9 @@ import (
 )
 
 type Channel struct {
-	Name      string `toml:"name"`
-	ChannelId string `toml:"channelId"`
+	Name        string `toml:"name"`
+	ChannelId   string `toml:"channelId"`
+	TwitterName string `toml:"twitterName"`
 }
 
 type Channels []*Channel
@@ -442,7 +443,7 @@ func (s *Searcher)searchVideosByChannel(channel *Channel, checkModified bool) (e
 	return nil
 }
 
-func (s *Searcher)getChannelByChannelId(name string, channelId string, etag string) (*database.Channel, bool, bool, error) {
+func (s *Searcher)getChannelByChannelId(name string, channelId string, twitterName string, etag string) (*database.Channel, bool, bool, error) {
 	channelService := youtube.NewChannelsService(s.getYoutubeService())
 	channelListCall := channelService.List("id,snippet")
 	channelListCall.Id(channelId)
@@ -482,11 +483,12 @@ func (s *Searcher)getChannelByChannelId(name string, channelId string, etag stri
 		ThumbnailMediumWidth: item.Snippet.Thumbnails.Medium.Width,
 		ThumbnailMediumHeight: item.Snippet.Thumbnails.Medium.Height,
 		ResponseEtag: channelListResponse.Etag,
+		TwitterName: twitterName,
 	}
 	return channel, false, false, nil
 }
 
-func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkModified bool) (error) {
+func (s *Searcher)searchChannelByChannelId(name string, channelId string, twitterName string, checkModified bool) (error) {
 	channel, ok, err := s.databaseOperator.GetChannelByChannelId(channelId)
 	if err != nil {
 		return errors.Wrapf(err, "can not get chennal by channelId from database (channelId = %v)", channelId)
@@ -498,7 +500,7 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 			}
 			return nil
 		}
-		newChannel, notModified, notFound, err := s.getChannelByChannelId(name, channel.ChannelId, channel.ResponseEtag)
+		newChannel, notModified, notFound, err := s.getChannelByChannelId(name, channel.ChannelId, twitterName, channel.ResponseEtag)
 		if err != nil {
 			return errors.Wrapf(err, "can not get channel by channelId with api (channelId = %v)", channel.ChannelId)
 		}
@@ -525,7 +527,7 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 			return errors.Wrapf(err, "can not update channel (channelId = %v, etag = %v)", newChannel.ChannelId, newChannel.Etag)
 		}
 	} else {
-		newChannel, _, notFound, err := s.getChannelByChannelId(name, channelId, "")
+		newChannel, _, notFound, err := s.getChannelByChannelId(name, channelId, twitterName, "")
 		if err != nil {
 			return errors.Wrapf(err, "can not get channel by channelId with api (channelId = %v)", channelId)
 		}
@@ -546,7 +548,7 @@ func (s *Searcher)searchChannelByChannelId(name string, channelId string, checkM
 func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment bool, collectLiveChatComment bool, checkChannelModified bool, checkVideoModified bool, checkCommentModified bool) (error) {
 	for _, channel := range s.channels {
 		if searchChannel {
-			err := s.searchChannelByChannelId(channel.Name, channel.ChannelId, checkChannelModified)
+			err := s.searchChannelByChannelId(channel.Name, channel.ChannelId, channel.TwitterName, checkChannelModified)
 			if err != nil {
 				return errors.Wrapf(err, "can not search channel by channelId (name = %v, channelId = %v)", channel.Name, channel.ChannelId)
 			}

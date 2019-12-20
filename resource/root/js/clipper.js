@@ -26,7 +26,6 @@ var app = new Vue({
 		this.loadSetting();
 		let channelIdElements = document.getElementsByClassName('channelId');
 		for (let i = 0; i < channelIdElements.length; i++) {
-			console.log(channelIdElements[i]);
 			this.channelIdList.push(channelIdElements[i].value);
 		}
 		for (let idx in this.channelIdList) {
@@ -125,6 +124,9 @@ var app = new Vue({
 		makeOriginUrl: function(clip) {
 			return "https://youtu.be/" + clip.VideoId + "?t=" + clip.Start;
 		},
+		makeTwitterUrl: function(clip) {
+			return "https://twitter.com/" + clip.TwitterName;
+		},
 		incrementIndex: function() {
 			this.clipsIndex += 1;
 			if (this.clipsIndex >= this.clips.length) {
@@ -179,6 +181,16 @@ var app = new Vue({
 			this.originUrl = this.makeOriginUrl(clip);
 			this.clipRecommenders = "推薦者:" + clip.Recommenders.join("さん, ") + "さん";
 			this.clipVideoTitle = clip.Title;
+			document.getElementById('twitterLink').innerHTML = "";
+			twttr.widgets.createFollowButton(
+			    clip.TwitterName,
+			    document.getElementById('twitterLink'),
+			    {
+				    size: 'large',
+			            showCount: false,
+				    lang: 'ja'
+			    }
+			);
 		},
 		toggleRandomPlay: function() {
 			if (this.random) {

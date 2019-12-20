@@ -14,6 +14,7 @@
 <link rel="stylesheet" type="text/css" href="css/clipper.css" />
 <link rel="shortcut icon" href="icon/favicon.ico" />
 <script type="text/javascript" src="js/axios.min.js" charset="utf-8"></script>
+<script type="text/javascript" src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
 <body>
 	<div id="app">
@@ -36,7 +37,8 @@
 			<div> {{ `{{ clipRecommenders }}` }} </div>
 			<div> {{ `{{ clipVideoTitle }}` }} </div>
 			<div id="player"></div>
-			<div id="youtubePagelink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
+			<div id="youtubePageLink"><a v-bind:href="originUrl" target="_clipper"> {{ `{{ originUrl }}` }} </a></div>
+			<div id="twitterLink"></div>
 			<div id="controllerContent">
 				<span class="customPaddingRight"><button class="customButton" v-on:click="playPreviousClip">←前へ</button></span>
 				<span class="customPaddingMiddle"><button class="customButton" v-bind:class="{ customButtonActive: random }" v-on:click="toggleRandomPlay">ランダム再生</button></span>
