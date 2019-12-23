@@ -480,9 +480,10 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				if start < 0 {
 					start = 0;
 				}
+				end := ((int64)(i) * b.autoDetectUnitSpan) + (b.autoDetectRangeSec / 3 * 2)
 				timeRangeProp := &timeRangeProperty{
 					start: start,
-					end: 0,
+					end: end,
 					comments: make([]*commentProperty, 0),
 					commentsDupCheckMap: make(map[string]bool),
 				}
