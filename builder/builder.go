@@ -480,7 +480,13 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 				if start < 0 {
 					start = 0;
 				}
+				if start > duration {
+					start = duration;
+				}
 				end := ((int64)(i) * b.autoDetectUnitSpan) + (b.autoDetectRangeSec / 3 * 2)
+				if end > duration {
+					end = duration;
+				}
 				timeRangeProp := &timeRangeProperty{
 					start: start,
 					end: end,
