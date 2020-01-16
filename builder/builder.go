@@ -321,6 +321,15 @@ func (b *Builder)computeStandardDeviationThreshold(counts[]float64) (float64) {
 	return average + (math.Sqrt(powTotal/n) * b.autoDetectThreshold)
 }
 
+func (b *Builder)containsPatterns(text string) (bool) {
+	patterns := [...] string{"w", "W", "W", "ｗ", "lol", "LOL", "草", "くさ", "笑", "ワロ", "さす", "かっこいい", "ナイス", "ないす"}
+	for _, s := range patterns {
+		if strings.Contains(text, s) == true {
+			return true
+		}
+	}
+	return false
+}
 
 func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelProperty, error) {
 	// create channel property
@@ -442,6 +451,8 @@ func (b *Builder)makeChannelProperty(channel *database.Channel) (*channelPropert
 			}
 			idx := offset / b.autoDetectUnitSpan
 			if liveChatComment.PurchaseAmountText != "" {
+				counts[idx] += 2
+			} else if b.containsPatterns(liveChatComment.MessageText) {
 				counts[idx] += 2
 			} else {
 				counts[idx] += 1
