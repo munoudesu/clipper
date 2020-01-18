@@ -322,7 +322,7 @@ func (b *Builder)computeStandardDeviationThreshold(counts[]float64) (float64) {
 }
 
 func (b *Builder)containsPatterns(text string) (bool) {
-	patterns := [...] string{"w", "W", "W", "ｗ", "lol", "LOL", "草", "くさ", "笑", "ワロ", "さす", "かっこいい", "ナイス", "ないす"}
+	patterns := [...] string{"w", "W", "W", "ｗ", "lol", "LOL", "草", "くさ", "笑", "ワロ", "さす", "かっこいい", "かっこいい", "ナイス", "ないす", "え？", "ん？", "は？", "茶葉" }
 	for _, s := range patterns {
 		if strings.Contains(text, s) == true {
 			return true
