@@ -1168,8 +1168,13 @@ func (d *DatabaseOperator) createTables() (error) {
 		updateAt              TEXT NOT NULL
 	)`
 	_, err = d.db.Exec(topLevelCommentTableCreateQuery);
-	if  err != nil {
+	if err != nil {
 		return errors.Wrap(err, "can not create topLevelComment table")
+	}
+	topLevelCommentTextOriginalIndexQuery := `CREATE INDEX IF NOT EXISTS topLevelComment_textOriginal_index ON topLevelComment(textOriginal)`
+	_, err = d.db.Exec(topLevelCommentTextOriginalIndexQuery);
+	if err != nil {
+		return errors.Wrap(err, "can not create topLevelComment_textOriginal_index index")
 	}
 
         replyCommentTableCreateQuery := `
@@ -1192,6 +1197,11 @@ func (d *DatabaseOperator) createTables() (error) {
 	_, err = d.db.Exec(replyCommentTableCreateQuery);
 	if  err != nil {
 		return errors.Wrap(err, "can not create replyComment table")
+	}
+	replyCommentTextOriginalIndexQuery := `CREATE INDEX IF NOT EXISTS replyComment_textOriginal_index ON replyComment(textOriginal)`
+	_, err = d.db.Exec(replyCommentTextOriginalIndexQuery);
+	if err != nil {
+		return errors.Wrap(err, "can not create replyComment_textOriginal_index index")
 	}
 
         liveChatCommentTableCreateQuery := `

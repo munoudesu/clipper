@@ -573,7 +573,8 @@ func (s *Searcher)Search(searchChannel bool, searchVideo bool, searchComment boo
 				}
 				err := s.searchCommentThreadsByVideo(video, checkCommentModified)
 				if err != nil {
-					return errors.Wrapf(err, "can not search comment threads by video (neme = %v, videoId = %v)", video.Name, video.VideoId)
+					log.Printf("can not search comment threads by video (neme = %v, videoId = %v) : %v", video.Name, video.VideoId, err)
+					continue
 				}
 			}
 		}

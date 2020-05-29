@@ -26,6 +26,7 @@ const daySepRegexExpr = "[dD]"
 const hourSepRegexExpr = "[hH]"
 const minSepRegexExpr = "[mM]"
 const secSepRegexExpr = "[sS]"
+const commentPatternRegexExpr = "(ナイス)|(ないす)|((.*)w)$|((.*)ｗ)$|((.*)草)$|(かっこいい)|(かわいい)|(kawaii)|(茶葉)|^(は？)$|^(え？)$|^(ん？)$|(そうはならんやろ)|(それはない)|(なんでや)|(さすが)"
 
 type timeRange struct {
 	start         int64
@@ -74,6 +75,7 @@ type Builder struct {
 	hourSepRegexp          *regexp.Regexp
 	minSepRegexp           *regexp.Regexp
 	secSepRegexp           *regexp.Regexp
+	commentPatternRegexp   *regexp.Regexp
 	maxDuration            int64
 	adjustStartTimeSpan    int64
 	autoDetectUnitSpan     int64
@@ -322,11 +324,8 @@ func (b *Builder)computeStandardDeviationThreshold(counts[]float64) (float64) {
 }
 
 func (b *Builder)containsPatterns(text string) (bool) {
-	patterns := [...] string{"w", "W", "W", "ｗ", "lol", "LOL", "草", "くさ", "笑", "ワロ", "さす", "かっこいい", "かっこいい", "ナイス", "ないす", "え？", "ん？", "は？", "茶葉" }
-	for _, s := range patterns {
-		if strings.Contains(text, s) == true {
-			return true
-		}
+	if b.commentPatternRegexp.FindString(text) != "" {
+		return true
 	}
 	return false
 }
@@ -726,6 +725,10 @@ func NewBuilder(
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not compile secSepRegexExpr (%v)", secSepRegexExpr)
 	}
+	commentPatternRegexp, err := regexp.Compile(commentPatternRegexExpr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can not compile comentPatternRegexExpr (%v)", commentPatternRegexExpr)
+	}
 	templatePattern := filepath.Join(templateDirPath, "*.tmpl")
 	templates, err := template.ParseGlob(templatePattern)
 	if err != nil {
@@ -766,6 +769,7 @@ func NewBuilder(
 		hourSepRegexp: hourSepRegexp,
 		minSepRegexp: minSepRegexp,
 		secSepRegexp: secSepRegexp,
+		commentPatternRegexp: commentPatternRegexp,
 		maxDuration: maxDuration,
 		adjustStartTimeSpan: adjustStartTimeSpan,
 		autoDetectUnitSpan: autoDetectUnitSpan,
